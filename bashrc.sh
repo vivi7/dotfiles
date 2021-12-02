@@ -1,5 +1,5 @@
 #!/bin/sh
-#  16/08/2021
+#  01/12/2021
 #  Edited by Vincenzo Favara
 #  ---------------------------------------------------------------------------
 #
@@ -41,12 +41,13 @@ echom() {
 }
 
 checkOS() {
-    unameOut="$(uname -s)"
+    unameOut="$(uname -a)"
     case "${unameOut}" in
-    Linux*) [ -x $(command -v termux-setup-storage) ] && machine=Termux || machine=Linux ;;
-    Darwin*) machine=MacOS ;;
-    CYGWIN*) machine=Cygwin ;;
-    MINGW*) machine=MinGw ;;
+    *Darwin*) machine=MacOS ;;
+    *CYGWIN*) machine=Cygwin ;;
+    *MINGW*) machine=MinGw ;;
+    *iSH*) machine=iSH ;;
+    *Linux*) [ -x $(command -v termux-setup-storage) ] && machine=Termux || machine=Linux ;;
     *) machine="UNKNOWN:${unameOut}" ;;
     esac
     echo ${machine}
@@ -54,6 +55,7 @@ checkOS() {
 
 isMac() { [[ $(checkOS) == "MacOS" ]] && echo 1 || echo 0; }
 isTermux() { [[ $(checkOS) == "Termux" ]] && echo 1 || echo 0; }
+isIsh() { [[ $(checkOS) == "iSH" ]] && echo 1 || echo 0; }
 
 #####################
 #                   #
@@ -81,13 +83,12 @@ highlight LineNr ctermfg=white    " Color line numbers
 set encoding=utf-8    " Encoding
 set hlsearch    " Highlight matching search patterns
 set incsearch    " Enable incremental search
-set viminfo='100,<9999,s100    " Store info from no more than 100 files at a time, 9999 lines of text, 100kb of data. Useful for copying large amounts of data between files.
+set viminfo='100,<9999,s100'    " Store info from no more than 100 files at a time, 9999 lines of text, 100kb of data. Useful for copying large amounts of data between files.
 set showmode
 set showcmd
 set cmdheight=1
 
-" Uncomment below to set the max textwidth. Use a value corresponding to the width of your screen.
-" set textwidth=80
+set textwidth=80      " Set the max textwidth. Use a value corresponding to the width of your screen.
 set formatoptions=tcqrn1
 set tabstop=4
 set shiftwidth=4
@@ -95,7 +96,7 @@ set softtabstop=4
 set expandtab
 set noshiftround
 
-" Set status line display
+set laststatus=2    " Set status line display 
 set laststatus=2
 hi StatusLine ctermfg=NONE ctermbg=red cterm=NONE
 hi StatusLineNC ctermfg=black ctermbg=red cterm=NONE
@@ -452,7 +453,7 @@ mv_subfiles_here() { find . -type f -print0 | xargs -0 mv -t .; }               
 mcd() { mkdir -p "$1" && cd "$1"; }                                                                                                                                                        #: mcd: Makes new Dir and jumps inside
 ff() { find . -name "$@"; }                                                                                                                                                                #: ff: Find file under the current directory
 ffi() { find ./ -type f -exec file --mime-type {} \; | awk '{if ($NF ~ "image") print $0 }'; }                                                                                             #: ffi: Find images here
-cchown() { sudo chown -R $(whoami) "$1"; }                                                                                                                                                 #: cchown: Change user Owner
+cchown() { [[ $(id -u) -ne 0 ]] && { sudo chown -R $(whoami) "$1"; } || {  chown -R $(whoami) "$1"; } }                                                                                    #: cchown: Change user Owner
 zipf() { zip -r "$1".zip "$1"; }                                                                                                                                                           #: zipf: To create a ZIP archive of a folder
 extract() {                                                                                                                                                                                #: extract:  Extract most know archives with one command
     if [ -f $1 ]; then
@@ -513,6 +514,84 @@ repeat_cmd_in_folder() { #: repeat_cmd_in_folder: args: single_word_command_or_f
         fi
     done
 }
+create_script() { #: create_script: create template for new_script.sh
+    cat >new_script.sh <<\EOF
+#!/bin/sh
+PROGNAME=$0
+usage() {
+  echo $'\e[1;31m' "\nUsage: $PROGNAME [-v] [-d <dir>] [-f <file>] \n
+-f <file>: Specify file path
+ -d <dir>: Specify directory path
+       -v: verbose" "\n" $'\e[0m' #end red color
+  exit 1
+}
+dir=default_dir file=default_file verbose_level=0
+while getopts 'd:f:v' o; do       # put : after if require an argumnt
+  case $o in
+    (f) file=$OPTARG;;
+    (d) dir=$OPTARG;;
+    (v) verbose_level=$((verbose_level + 1));;
+    (*) usage
+  esac
+done
+shift "$((OPTIND - 1))"
+echo Remaining arguments: "$@"
+EOF
+    chmod u+x new_script.sh
+}
+install_zsh() { #: install_zsh: install and set zsh shell
+    echo "Do you want to install zsh? (y/n) : "
+    read ZSH_REPLY
+    [[ "$ZSH_REPLY" =~ "y" ]] && {
+        mkdir -p $HOME/.oh-my-zsh
+        git clone --depth 1 git://github.com/robbyrussell/oh-my-zsh.git $HOME/.oh-my-zsh
+        cchown .oh-my-zsh
+        # git clone https://github.com/zdharma/fast-syntax-highlighting.git $HOME/.oh-my-zsh/custom/plugins/fast-syntax-highlighting
+        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git $HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
+        git clone https://github.com/zsh-users/zsh-autosuggestions.git $HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions
+        git clone https://github.com/zsh-users/zsh-completions $HOME/.oh-my-zsh/custom/plugins/zsh-completions
+        # git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
+
+        git clone https://github.com/denysdovhan/spaceship-prompt.git $HOME/.oh-my-zsh/custom/themes/spaceship-prompt --depth=1
+        ln -s "$HOME/.oh-my-zsh/custom/themes/spaceship-prompt/spaceship.zsh-theme" "$HOME/.oh-my-zsh/themes/spaceship.zsh-theme"
+        # npm install -g spaceship-prompt
+        # cp $HOME/.oh-my-zsh/templates/zshrc.zsh-template $HOME/.zshrc
+
+        echo "Do you want to replace your .zshrc? (y/n) : "
+        read ZSHRC_REPLY
+        [[ "$ZSHRC_REPLY" =~ "y" ]] && {
+            cat >$HOME/.zshrc <<\EOF
+export ZSH=$HOME/.oh-my-zsh
+ZSH_THEME="spaceship"
+SPACESHIP_TIME_SHOW="true"
+DISABLE_AUTO_UPDATE="true"
+ENABLE_CORRECTION="true"
+COMPLETION_WAITING_DOTS="true"
+HIST_STAMPS="yyyy-mm-dd"
+plugins=(
+  git  npm  osx  torrent
+  zsh-syntax-highlighting  zsh-autosuggestions  zsh-completions
+)
+source $ZSH/oh-my-zsh.sh
+function zsh_options() {
+    PLUGIN_PATH="$ZSH/plugins/"
+    for plugin in $plugins; do
+        echo "\n\nPlugin: $plugin"; 
+        grep -r "^function \w*" $PLUGIN_PATH$plugin | \
+            awk '{print $2}' | \
+            sed "s/()//" | \ 
+            tr '\n' ', '; 
+        grep -r "^alias" $PLUGIN_PATH$plugin | awk '{print $2}' | sed 's/=.*//' |  tr '\n' ', ' ;
+    done
+}
+
+EOF
+            echom ".zshrc replaced" "*" "${green}"
+            echo "source $_bashrc_file_path" >> $HOME/.zshrc
+        }
+        chsh -s zsh
+    }
+}
 bitbucket_store() { #: bitbucket_store: store all files in folder as bitbucket repo
     REPO_NAME=$1
     ASWER_ALWAYS_YES=$2 || "n"
@@ -570,6 +649,48 @@ bitbucket_store() { #: bitbucket_store: store all files in folder as bitbucket r
     git remote add $ORIGIN https://$BB_USER@bitbucket.org/$BB_USER/$REPO_NAME.git
     git push -u $ORIGIN --all
     echom "Done. You can find your new repository here: https://bitbucket.org/$BB_USER/$REPO_NAME" "*" "${green}"
+}
+config_git() { #: config_git: replace your .gitconfig
+    echo "Do you want to replace your .gitconfig? (y/n) : "
+    read GITCONFIG_REPLY
+    [[ "$GITCONFIG_REPLY" =~ "y" ]] && {
+        echo "${_git_config}" >$HOME/.gitconfig
+        echom ".gitconfig replaced" "*" "${green}"
+    }
+}
+config_vim_rc() { #: config_vim_rc: replace your .vimrc
+    echo "Do you want to replace your .vimrc? (y/n) : "
+    read VIMRC_REPLY
+    [[ "$VIMRC_REPLY" =~ "y" ]] && {
+        echo "${_vimrc}" >$HOME/.vimrc
+        echom ".vimrc replaced" "*" "${green}"
+    }
+}
+vdiff () {  #: vdiff: compare 2 files/folders
+    if [ "${#}" -ne 2 ] ; then
+        echo "vdiff requires two arguments"
+        echo "  comparing dirs:  vdiff dir_a dir_b"
+        echo "  comparing files: vdiff file_a file_b"
+        return 1
+    fi
+    left="${1}"
+    right="${2}"
+    if [ -d "${left}" ] && [ -d "${right}" ]; then
+        vim +"DirDiff ${left} ${right}"
+    else
+        vim -d "${left}" "${right}"
+    fi
+}
+drun() {  #: drun: run docker app -it
+    docker run --rm -it -v "${PWD}":/app -w /app
+}
+dtags() {  #: dtags: retrive remote docker images tags
+    image="${1}"
+    wget -q "https://registry.hub.docker.com/v1/repositories/${image}/tags" -O - | tr -d '[]" ' | tr '}' '\n' | awk -F: '{print $3}'
+}
+dsearch() {  #: dtags: retrive remote docker images tags
+    txt="${1}"
+    wget -q "https://hub.docker.com/api/content/v1/products/search/?q=${txt}" -O - | jq -r '.summaries[] | [.id, .slug]'
 }
 decrease_quality_image() { #: decrease_quality_image: Decrease image quality to 90%
     _regex=$1 || '*.jpg'
@@ -708,100 +829,6 @@ print_welcome() {
     welcome_msg
     echo ''
 }
-create_script() { #: create_script: create template for new_script.sh
-    cat >new_script.sh <<\EOF
-#!/bin/sh
-PROGNAME=$0
-usage() {
-  echo $'\e[1;31m' "\nUsage: $PROGNAME [-v] [-d <dir>] [-f <file>] \n
--f <file>: Specify file path
- -d <dir>: Specify directory path
-       -v: verbose" "\n" $'\e[0m' #end red color
-  exit 1
-}
-dir=default_dir file=default_file verbose_level=0
-while getopts 'd:f:v' o; do       # put : after if require an argumnt
-  case $o in
-    (f) file=$OPTARG;;
-    (d) dir=$OPTARG;;
-    (v) verbose_level=$((verbose_level + 1));;
-    (*) usage
-  esac
-done
-shift "$((OPTIND - 1))"
-echo Remaining arguments: "$@"
-EOF
-    chmod u+x new_script.sh
-}
-install_zsh() { #: install_zsh: install and set zsh shell
-    echo "Do you want to install zsh? (y/n) : "
-    read ZSH_REPLY
-    [[ "$ZSH_REPLY" =~ "y" ]] && {
-        mkdir -p $HOME/.oh-my-zsh
-        git clone --depth 1 git://github.com/robbyrussell/oh-my-zsh.git $HOME/.oh-my-zsh
-        cchown .oh-my-zsh
-        # git clone https://github.com/zdharma/fast-syntax-highlighting.git $HOME/.oh-my-zsh/custom/plugins/fast-syntax-highlighting
-        git clone https://github.com/zsh-users/zsh-syntax-highlighting.git $HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
-        git clone https://github.com/zsh-users/zsh-autosuggestions.git $HOME/.oh-my-zsh/custom/plugins/zsh-autosuggestions
-        git clone https://github.com/zsh-users/zsh-completions $HOME/.oh-my-zsh/custom/plugins/zsh-completions
-        # git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
-
-        git clone https://github.com/denysdovhan/spaceship-prompt.git $HOME/.oh-my-zsh/custom/themes/spaceship-prompt --depth=1
-        ln -s "$HOME/.oh-my-zsh/custom/themes/spaceship-prompt/spaceship.zsh-theme" "$HOME/.oh-my-zsh/themes/spaceship.zsh-theme"
-        # npm install -g spaceship-prompt
-        # cp $HOME/.oh-my-zsh/templates/zshrc.zsh-template $HOME/.zshrc
-
-        echo "Do you want to replace your .zshrc? (y/n) : "
-        read ZSHRC_REPLY
-        [[ "$ZSHRC_REPLY" =~ "y" ]] && {
-            cat >$HOME/.zshrc <<\EOF
-export ZSH=$HOME/.oh-my-zsh
-ZSH_THEME="spaceship"
-SPACESHIP_TIME_SHOW="true"
-DISABLE_AUTO_UPDATE="true"
-ENABLE_CORRECTION="true"
-COMPLETION_WAITING_DOTS="true"
-HIST_STAMPS="yyyy-mm-dd"
-plugins=(
-  git  npm  osx  torrent
-  zsh-syntax-highlighting  zsh-autosuggestions  zsh-completions
-)
-source $ZSH/oh-my-zsh.sh
-function zsh_options() {
-    PLUGIN_PATH="$ZSH/plugins/"
-    for plugin in $plugins; do
-        echo "\n\nPlugin: $plugin"; 
-        grep -r "^function \w*" $PLUGIN_PATH$plugin | \
-            awk '{print $2}' | \
-            sed "s/()//" | \ 
-            tr '\n' ', '; 
-        grep -r "^alias" $PLUGIN_PATH$plugin | awk '{print $2}' | sed 's/=.*//' |  tr '\n' ', ' ;
-    done
-}
-
-EOF
-            echom ".zshrc replaced" "*" "${green}"
-            echo "source $_bashrc_file_path" >> $HOME/.zshrc
-        }
-        chsh -s zsh
-    }
-}
-config_git() { #: config_git: replace your .gitconfig
-    echo "Do you want to replace your .gitconfig? (y/n) : "
-    read GITCONFIG_REPLY
-    [[ "$GITCONFIG_REPLY" =~ "y" ]] && {
-        echo "${_git_config}" >$HOME/.gitconfig
-        echom ".gitconfig replaced" "*" "${green}"
-    }
-}
-config_vim_rc() { #: config_vim_rc: replace your .vimrc
-    echo "Do you want to replace your .vimrc? (y/n) : "
-    read VIMRC_REPLY
-    [[ "$VIMRC_REPLY" =~ "y" ]] && {
-        echo "${_vimrc}" >$HOME/.vimrc
-        echom ".vimrc replaced" "*" "${green}"
-    }
-}
 
 if [[ $(isTermux) == 1 ]]; then
     if [ -x $PREFIX/libexec/termux/command-not-found ]; then
@@ -893,7 +920,7 @@ _EOF_
         config_git
         install_zsh
     }
-    install_termux_desktop() { #: install_termux_desktop: Install termux desktop Termux packages
+    install_termux_desktop() { #: install_termux_desktop: Install  desktop Termux packages
         pkg_desktop=(
             bc bmon calcurse dbus fsmon man mpc mpd ncmpcpp startup-notification xmlstarlet xorg-xrdb
             desktop-file-utils
@@ -1228,6 +1255,118 @@ EOT
         echo -e ''
     }
 fi
+
+if [[ $(isIsh) == 1 ]]; then
+    staylive() { #: staylive: it is a ios background workaround
+        CHECK=$(ps -o args | grep "cat /dev/location" | wc -l)
+        if [ $CHECK -eq 1 ]; then
+            cat /dev/location > /dev/null &
+            echom "Stay Alive...now is activate!" "*" "${green}"
+        else
+            echom "Stay Alive...already activated!" "*" "${yellow}"
+        fi
+    }
+
+    run_vnc() { #: run_vnc: run VNC server in iSH background
+        echom "Starting VNC Server..." "*" "${green}"
+        CHECK=$(ps -o args | grep "{startx} /bin/sh /usr/bin/startx" | wc -l)
+
+        if [ $CHECK -eq 1 ]; then 
+            rm -rf /tmp/.X*   # Nothing running, clear stale locks
+            startx &
+            x11vnc -display :0 -noshm -forever & 
+            echom "VNC Server is started!" "*" "${green}"
+        else
+            echom "VNC server is already running." "*" "${yellow}"
+        fi
+    }
+    install_must() { #: install_must: Install must have iSH packages
+        echom "Installing must have repo packages..." "*" "${yellow}"
+        apk update
+        pkg_must=(
+            neofetch git wget curl jq vim tree zsh
+            ffmpeg imagemagick
+        )
+        echom "Installing must have packages..." "*" "${yellow}"
+        apk add "${pkg_must[@]}"
+        echom "Must have packages installed successfully" "*" "${green}"
+        config_git
+        install_zsh
+    }
+    install_ish_desktop() { #: install_iSH_desktop: Install desktop iSH packages
+        echom "Guide: https://github.com/ish-app/ish/wiki/Running-a-VNC-Server" "*" "${yellow}"
+        pkg_desktop=(
+            x11vnc x11vnc-doc 
+            xvfb xterm xorg-server xf86-video-dummy 
+            i3wm i3status i3lock xdpyinfo xdpyinfo-doc i3wm-doc i3lock-doc i3status-doc ttf-dejavu
+        )
+        echo "Related apk packages are:" "${pkg_desktop[@]}"
+        echo "Do you want ish-desktop? (install/uninstall) : "
+        read INSTALL_REPLY
+        if [[ "$INSTALL_REPLY" == "install" ]]; then
+            apk add "${pkg_desktop[@]}"
+            if [ ! -e /etc/X11/xorg.conf.d ]; then
+                mkdir -p /etc/X11/xorg.conf.d
+            fi
+            mkdir -p /root/i3logs
+            
+
+            cat > /etc/X11/xorg.conf.d/10-headless.conf <<EOF
+Section "Monitor"
+        Identifier "dummy_monitor"
+        HorizSync 28.0-80.0
+        VertRefresh 48.0-75.0
+        DisplaySize  250 174    # In millimeters, iPad gen 7 & 8
+EndSection
+
+Section "Device"
+        Identifier "dummy_card"
+        VideoRam 256000
+        Driver "dummy"
+EndSection
+
+Section "Screen"
+        Identifier "dummy_screen"
+        Device "dummy_card"
+        Monitor "dummy_monitor"
+        SubSection "Display"
+           depth 24
+           Modes "1024x768"  # Works OK on ~10 inch iPad's
+ #          Modes "1280x1024"  # Likely to work on larger iPad
+        EndSubSection
+EndSection
+EOF
+
+            cat > /root/.xinitrc <<EOF
+xrdb -merge ~/.Xresources
+xterm -geometry 80x50+494+51 &
+xterm -geometry 80x20+494-0 &
+exec i3 -V >> /root/i3logs/i3log-$(date +'%F-%k-%M-%S') 2>&1
+EOF
+            cat > /root/.Xresources <<EOF
+Xft.dpi: 264
+xterm*VT100.Translations: #override \
+    Ctrl <Key> minus: smaller-vt-font() \n\
+    Ctrl <Key> plus: larger-vt-font() \n\
+    Ctrl <Key> 0: set-vt-font(d)
+EOF
+            
+            echom "Desktop Environment set successfully" "*" "${green}"
+        elif [[ "$INSTALL_REPLY" == "uninstall" ]]; then
+            apk del "${pkg_desktop[@]}"
+            apk -v cache clean
+            echom "Desktop Environment removed successfully" "*" "${green}"
+            run_vnc
+        else
+            echom "Arg must be: install/uninstall" "!" "${red}"
+        fi
+    }
+    welcome_msg() {
+        echo -e " "
+    }
+fi
+
+
 
 _bashrc_rpl $1
 print_welcome
