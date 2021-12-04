@@ -47,6 +47,7 @@ checkOS() {
     *CYGWIN*) machine=Cygwin ;;
     *MINGW*) machine=MinGw ;;
     *iSH*) machine=iSH ;;
+    *qnap*) machine=qnap ;;
     *Linux*) [ -x $(command -v termux-setup-storage) ] && machine=Termux || machine=Linux ;;
     *) machine="UNKNOWN:${unameOut}" ;;
     esac
@@ -56,6 +57,7 @@ checkOS() {
 isMac() { [[ $(checkOS) == "MacOS" ]] && echo 1 || echo 0; }
 isTermux() { [[ $(checkOS) == "Termux" ]] && echo 1 || echo 0; }
 isIsh() { [[ $(checkOS) == "iSH" ]] && echo 1 || echo 0; }
+isQnap() { [[ $(checkOS) == "qnap" ]] && echo 1 || echo 0; }
 
 #####################
 #                   #
@@ -343,15 +345,15 @@ alias bashrc_rpl="cat $_bashrc_file_name > $_bashrc_file_path && source $_bashrc
 alias bashrc_src="source $_bashrc_file_path"                                                                                 #: bashrc_src: source bashrc
 alias bashrc_cat="cat $_bashrc_file_path"                                                                                    #: bashrc_cat: cat bashrc
 alias bashrc_edit="nano $_bashrc_file_path"                                                                                  #: bashrc_edit: nano bashrc
-alias chown='chown --preserve-root'                                                                                          #: Preferred 'chown' implementation: Parenting changing perms on
-alias chmod='chmod --preserve-root'                                                                                          #: Preferred 'chmod' implementation: Parenting changing perms on
-alias chgrp='chgrp --preserve-root'                                                                                          #: Preferred 'chgrp' implementation: Parenting changing perms on
-alias ls='ls -GFh'                                                                                                           #: Preferred 'ls' implementation
-alias cp='cp -iv'                                                                                                            #: Preferred 'cp' implementation
-alias mv='mv -iv'                                                                                                            #: Preferred 'mv' implementation
-alias mkdir='mkdir -pv'                                                                                                      #: Preferred 'mkdir' implementation
-alias ll='ls -FGlAhp'                                                                                                        #: Preferred 'ls' implementation
-alias less='less -FSRXc'                                                                                                     #: Preferred 'less' implementation
+alias chown='chown --preserve-root'                                                                                          #: chown: implementation: Parenting changing perms on
+alias chmod='chmod --preserve-root'                                                                                          #: chmod: implementation: Parenting changing perms on
+alias chgrp='chgrp --preserve-root'                                                                                          #: chgrp: implementation: Parenting changing perms on
+alias ls='ls -GFh'                                                                                                           #: ls: implementation
+alias cp='cp -iv'                                                                                                            #: cp: implementation
+alias mv='mv -iv'                                                                                                            #: mv: implementation
+alias mkdir='mkdir -pv'                                                                                                      #: mkdir: implementation
+alias ll='ls -FGlAhp'                                                                                                        #: ls: implementation
+alias less='less -FSRXc'                                                                                                     #: less: implementation
 alias c='clear'                                                                                                              #: c: Clear terminal display
 alias path='echo -e ${PATH//:/\\n}'                                                                                          #: path: Show all executable Paths
 alias cic='set completion-ignore-case On'                                                                                    #: cic: Make tab-completion case-insensitive
@@ -406,13 +408,13 @@ fi
 #                   #
 #####################
 
-alias cd..='cd ../'              #: Go back 1 directory level (for fast typers)
-alias ..='cd ../'                #: Go back 1 directory level
-alias ...='cd ../../'            #: Go back 2 directory levels
-alias .3='cd ../../../'          #: Go back 3 directory levels
-alias .4='cd ../../../../'       #: Go back 4 directory levels
-alias .5='cd ../../../../../'    #: Go back 5 directory levels
-alias .6='cd ../../../../../../' #: Go back 6 directory levels
+alias cd..='cd ../'              #: cd: Go back 1 directory level (for fast typers)
+alias ..='cd ../'                #: ..: Go back 1 directory level
+alias ...='cd ../../'            #: ..: Go back 2 directory levels
+alias .3='cd ../../../'          #: .3: Go back 3 directory levels
+alias .4='cd ../../../../'       #: .4: Go back 4 directory levels
+alias .5='cd ../../../../../'    #: .5: Go back 5 directory levels
+alias .6='cd ../../../../../../' #: .6: Go back 6 directory levels
 alias ~="cd ~"                   #: ~: Go Home
 alias cdh="cd ~"                 #: cdh: Go Home
 alias h='cd $HOME'               #: h: Go Home
@@ -856,7 +858,7 @@ if [[ $(isTermux) == 1 ]]; then
             internal_run
         }
     }
-    wrap_vnc() { #: wrap_vnc: -n = new session / -c = configure / -s = stop VNC server in Termux background
+    wrap_vnc() { #: wrap_vnc: -s = start / -c = configure / -x = stop VNC server in Termux background
         internal_start() {
             echom "Starting VNC Server..." "*" "${green}"
             export DISPLAY=":1"
@@ -890,9 +892,9 @@ _EOF_
 
         while getopts s:c:x o; do
             case $o in
-            n) internal_start ;;
-            c) internal_check_start ;;
-            x) internal_stop ;;
+            -s) internal_start ;;
+            -c) internal_check_start ;;
+            -x) internal_stop ;;
             *) internal_check_start ;;
             esac
         done
@@ -1281,7 +1283,7 @@ if [[ $(isIsh) == 1 ]]; then
         fi
     }
     install_must() { #: install_must: Install must have iSH packages
-        echom "Installing must have repo packages..." "*" "${yellow}"
+        echom "Installing must have packages..." "*" "${yellow}"
         apk update
         pkg_must=(
             neofetch git wget curl jq vim tree zsh
@@ -1366,7 +1368,48 @@ EOF
     }
 fi
 
-
+if [[ $(isQnap) == 1 ]]; then
+    wrap_apacke_server() { #: wrap_apacke_server: -s = start / -r = restart / -x = stop apache server in QNAP background
+        internal_start() {
+            echom "Starting Apache Server..." "*" "${green}"
+            /etc/init.d/Qthttpd.sh start
+        }
+        internal_restart() {
+            echom "Restart Apache Server..." "*" "${green}"
+            /etc/init.d/Qthttpd.sh restart
+        }
+        internal_stop() {
+            echom "Stopping Apache Server..." "*" "${green}"
+            /etc/init.d/Qthttpd.sh stop
+        }
+        while getopts s:r:x o; do
+            case $o in
+            -s) internal_start ;;
+            -r) internal_restart ;;
+            -x) internal_stop ;;
+            *) echo "Invalid option: -s = start / -r = restart / -x = stop";;
+            esac
+        done
+    }
+    install_neofetch() { #: install_neofetch: Install neofetch QNAP package
+        wget -O /bin/neofetch "https://raw.githubusercontent.com/vivi7/dotfiles/master/neofetch.sh"
+        chmod +x /bin/neofetch
+    }
+    install_must() { #: install_must: Install must have QNAP packages
+        echom "Installing must have packages..." "*" "${yellow}"
+        opkg update
+        pkg_must=( 
+            git wget curl jq vim tree zsh
+            ffmpeg imagemagick
+        )
+        echom "Installing must have packages..." "*" "${yellow}"
+        opkg install "${pkg_must[@]}"
+        install_neofetch
+        echom "Must have packages installed successfully" "*" "${green}"
+        config_git
+        install_zsh
+    }
+fi
 
 _bashrc_rpl $1
 print_welcome
