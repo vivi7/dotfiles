@@ -1,5 +1,5 @@
 #!/bin/sh
-#  01/12/2021
+echo "LastUpdate: 30/12/2021 rev1"
 #  Edited by Vincenzo Favara
 #  ---------------------------------------------------------------------------
 #
@@ -31,6 +31,8 @@ export cyan=$'\e[1;35m'
 export white=$'\e[1;37m'
 export endc=$'\e[0m'
 
+echo "Shell: ${0##*/}"
+
 _bashrc_file_name=bashrc.sh #${0##*/}
 
 echom() {
@@ -53,7 +55,7 @@ checkOS() {
     esac
     echo ${machine}
 }
-
+echo "checkOS: $(checkOS)"
 isMac() { [[ $(checkOS) == "MacOS" ]] && echo 1 || echo 0; }
 isTermux() { [[ $(checkOS) == "Termux" ]] && echo 1 || echo 0; }
 isIsh() { [[ $(checkOS) == "iSH" ]] && echo 1 || echo 0; }
@@ -99,7 +101,6 @@ set expandtab
 set noshiftround
 
 set laststatus=2    " Set status line display 
-set laststatus=2
 hi StatusLine ctermfg=NONE ctermbg=red cterm=NONE
 hi StatusLineNC ctermfg=black ctermbg=red cterm=NONE
 hi User1 ctermfg=black ctermbg=magenta
@@ -261,6 +262,16 @@ _neofetch_config_file_path=~/.config/neofetch/config.conf
 _neofetch_arg_disk_show='/'
 _neofetch_arg_backend=on
 
+_bashrc_rpl() {
+    [[ $1 == "i" ]] && {
+        cat $_bashrc_file_name >$_bashrc_file_path
+        echo "$_bashrc_file_path updated"
+    }
+}
+setps1() {  #: setps1: set ps1
+    PS1='\[${usercolor}\]┌─╼ λ\[${endc}\] \[${blue}\w\[${endc}\] \[${purple}$(git branch 2>/dev/null | grep "^*")\[${endc}\] \[${usercolor}\]$\[${endc}\] \[${usercolor}\]\n└──────► \[${endc}\]'
+}
+
 if [[ $(isTermux) == 1 ]]; then
     _bashrc_file_path="$PREFIX/etc/bash.bashrc"
     _neofetch_config_file_path="/data/data/com.termux/files/home/.config/neofetch/config.conf"
@@ -279,11 +290,9 @@ if [[ $(isTermux) == 1 ]]; then
 
     [[ "$UID" -eq 0 ]] && usercolor="${red}" || usercolor="${green}"
 
-    #GIT_BRANCH="$(git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/${white}${purple} git[\1] ${endc}')"
-
     [[ ${0##*/} == "bash" ]] && {
         shopt -s histappend # append to the history file, don't overwrite it
-        PS1='\[${usercolor}\]┌─╼ λ\[${endc}\] \[${blue}\w\[${endc}\] \[${usercolor}\]$\[${endc}\] \n\[${usercolor}\]${GIT_BRANCH}└──────► \[${endc}\]'
+        setps1
     }
 
     # sed -i 's@^\(deb.*stable main\)$@#\1\ndeb https://main.termux-mirror.ml stable mainn@' $PREFIX/etc/apt/sources.list # set faster repository
@@ -327,13 +336,6 @@ if [[ $(isMac) == 1 ]]; then
     [ -x $(command -v airport) ] || { sudo ln -s /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport /usr/sbin/airport; }
 fi
 
-_bashrc_rpl() {
-    [[ $1 == "i" ]] || {
-        cat $_bashrc_file_name >$_bashrc_file_path
-        echo "$_bashrc_file_path updated"
-    }
-}
-
 #####################
 #                   #
 #       ALIAS       #
@@ -345,9 +347,9 @@ alias bashrc_rpl="cat $_bashrc_file_name > $_bashrc_file_path && source $_bashrc
 alias bashrc_src="source $_bashrc_file_path"                                                                                 #: bashrc_src: source bashrc
 alias bashrc_cat="cat $_bashrc_file_path"                                                                                    #: bashrc_cat: cat bashrc
 alias bashrc_edit="nano $_bashrc_file_path"                                                                                  #: bashrc_edit: nano bashrc
-alias chown='chown --preserve-root'                                                                                          #: chown: implementation: Parenting changing perms on
-alias chmod='chmod --preserve-root'                                                                                          #: chmod: implementation: Parenting changing perms on
-alias chgrp='chgrp --preserve-root'                                                                                          #: chgrp: implementation: Parenting changing perms on
+# alias chown='chown --preserve-root'                                                                                          #: chown: implementation: Parenting changing perms on
+# alias chmod='chmod --preserve-root'                                                                                          #: chmod: implementation: Parenting changing perms on
+# alias chgrp='chgrp --preserve-root'                                                                                          #: chgrp: implementation: Parenting changing perms on
 alias ls='ls -GFh'                                                                                                           #: ls: implementation
 alias cp='cp -iv'                                                                                                            #: cp: implementation
 alias mv='mv -iv'                                                                                                            #: mv: implementation
@@ -457,6 +459,12 @@ ff() { find . -name "$@"; }                                                     
 ffi() { find ./ -type f -exec file --mime-type {} \; | awk '{if ($NF ~ "image") print $0 }'; }                                                                                             #: ffi: Find images here
 cchown() { [[ $(id -u) -ne 0 ]] && { sudo chown -R $(whoami) "$1"; } || {  chown -R $(whoami) "$1"; } }                                                                                    #: cchown: Change user Owner
 zipf() { zip -r "$1".zip "$1"; }                                                                                                                                                           #: zipf: To create a ZIP archive of a folder
+addpath() {                                                                                                                                                                                #: addpath: add safety path to PATH var
+    if [[ ! -d "$1" ]]; then echom "$1 not exist" "!" "${red}"; 
+    elif [[ ":$PATH:" == *":$path_to_add:"* ]]; then echom "$1 already added" "-" "${yellow}"; 
+    else PATH="${PATH:+"$PATH:"}$1" && echom "$PATH" "*" "${green}"; 
+    fi
+}
 extract() {                                                                                                                                                                                #: extract:  Extract most know archives with one command
     if [ -f $1 ]; then
         case $1 in
@@ -571,7 +579,7 @@ ENABLE_CORRECTION="true"
 COMPLETION_WAITING_DOTS="true"
 HIST_STAMPS="yyyy-mm-dd"
 plugins=(
-  git  npm  osx  torrent
+  git  npm  macos  torrent
   zsh-syntax-highlighting  zsh-autosuggestions  zsh-completions
 )
 source $ZSH/oh-my-zsh.sh
@@ -697,6 +705,21 @@ dsearch() {  #: dtags: retrive remote docker images tags
 decrease_quality_image() { #: decrease_quality_image: Decrease image quality to 90%
     _regex=$1 || '*.jpg'
     mogrify -path ./ -strip -quality 90% $_regex
+}
+install_vscode_ext() { #: install_vscode_ext: Install extension for vscode
+    code --install-extension esbenp.prettier-vscode
+    code --install-extension CoenraadS.bracket-pair-colorizer-2
+    code --install-extension darkriszty.markdown-table-prettify
+    code --install-extension eamodio.gitlens
+    code --install-extension esbenp.prettier-vscode
+    code --install-extension sketchbuch.vsc-quokka-statusbar
+    code --install-extension TabNine.tabnine-vscode
+    code --install-extension vscode-icons-team.vscode-icons
+    code --install-extension WallabyJs.quokka-vscode
+    code --install-extension wix.vscode-import-cost
+    code --install-extension wmaurer.change-case
+    code --install-extension rangav.vscode-thunder-client
+    code --install-extension Shan.code-settings-sync
 }
 wrap_ffmpeg() { #: wrap_ffmpeg: -i mov -o mp4 -j
     [ -x $(command -v ffmpeg) ] || {
@@ -827,9 +850,8 @@ print_welcome() {
         echo "${_neofetch_print_info}" >$_neofetch_config_file_path
         neofetch --disk_show $_neofetch_arg_disk_show --backend $_neofetch_arg_backend
     }
-    echo ''
+    echo "run 'bashrc_tags' (| grep QNAP/Termux/MacOS/iSH) function to know all possible new commands"
     welcome_msg
-    echo ''
 }
 
 if [[ $(isTermux) == 1 ]]; then
@@ -989,6 +1011,7 @@ EOF
         fi
     }
     welcome_msg() {
+        echo ""
         echo -e "# Hardware Keyboard
 # Ctrl + Alt + C → Create new session
 # Ctrl + Alt + R → Rename current session
@@ -1093,20 +1116,6 @@ EOT
         cleanBrewCasc
         config_git
         install_zsh
-    }
-    install_vscode_ext() { #: install_vscode_ext: Install extension for MacOS vscode
-        code --install-extension esbenp.prettier-vscode
-        code --install-extension CoenraadS.bracket-pair-colorizer-2
-        code --install-extension darkriszty.markdown-table-prettify
-        code --install-extension eamodio.gitlens
-        code --install-extension esbenp.prettier-vscode
-        code --install-extension sketchbuch.vsc-quokka-statusbar
-        code --install-extension TabNine.tabnine-vscode
-        code --install-extension vscode-icons-team.vscode-icons
-        code --install-extension WallabyJs.quokka-vscode
-        code --install-extension wix.vscode-import-cost
-        code --install-extension wmaurer.change-case
-        code --install-extension rangav.vscode-thunder-client
     }
     init_setup() { #: init_setup: Setup MacOS defaults
         echom "General Settings" "-" "${cyan}"
@@ -1254,7 +1263,7 @@ EOT
         config_git
     }
     welcome_msg() {
-        echo -e ''
+        echo -e " "
     }
 fi
 
@@ -1286,8 +1295,9 @@ if [[ $(isIsh) == 1 ]]; then
         echom "Installing must have packages..." "*" "${yellow}"
         apk update
         pkg_must=(
-            neofetch git wget curl jq vim tree zsh
+            neofetch openssh git wget curl jq vim tree zsh
             ffmpeg imagemagick
+            openrc
         )
         echom "Installing must have packages..." "*" "${yellow}"
         apk add "${pkg_must[@]}"
@@ -1369,6 +1379,22 @@ EOF
 fi
 
 if [[ $(isQnap) == 1 ]]; then
+    export PATH=/opt/bin:/opt/sbin:/share/CACHEDEV1_DATA/.qpkg/container-station/bin:/bin:/sbin:/usr/bin:/usr/sbin:/usr/bin/X11:/usr/local/sbin:/usr/local/bin
+    _fix_dns_connection() {  #: _fix_dns_connection: add to /etc/resolv.conf new QNAP nameservers to try to fix problem
+        # nslookup google.com
+        # nslookup google.com 8.8.8.8
+        # nslookup google.com 192.168.1.1 #gatway 
+        siteArray=("nameserver 127.0.0.1" "nameserver 127.0.1.1" "nameserver 192.168.8.1" "nameserver 8.8.8.8")
+        ETC_HOSTS=/etc/resolv.conf
+        for HOSTNAME in "${siteArray[@]}"; do
+            if [ -n "$(grep $HOSTNAME $ETC_HOSTS)" ]; then
+                echo "$HOSTNAME already exists : $(grep $HOSTNAME $ETC_HOSTS)"
+            else
+                echo "$HOSTNAME" >> $ETC_HOSTS;
+            fi
+        done
+        cat $ETC_HOSTS
+    }
     wrap_apacke_server() { #: wrap_apacke_server: -s = start / -r = restart / -x = stop apache server in QNAP background
         internal_start() {
             echom "Starting Apache Server..." "*" "${green}"
@@ -1399,7 +1425,7 @@ if [[ $(isQnap) == 1 ]]; then
         echom "Installing must have packages..." "*" "${yellow}"
         opkg update
         pkg_must=( 
-            git wget curl jq vim tree zsh
+            git git-http wget curl jq vim tree zsh
             ffmpeg imagemagick
         )
         echom "Installing must have packages..." "*" "${yellow}"
@@ -1408,6 +1434,69 @@ if [[ $(isQnap) == 1 ]]; then
         echom "Must have packages installed successfully" "*" "${green}"
         config_git
         install_zsh
+    }
+    qreport() {  #: qreport: report with a lot of QNAP info
+        echo "NAS Model:      $(getsysinfo model)"
+        echo "Firmware:       $(getcfg system version) Build $(getcfg system 'Build Number')"
+        echo "System Name:    $(/bin/hostname)"
+        echo "Workgroup:      $(getcfg system workgroup)"
+        echo "Base Directory: $(dirname $(getcfg -f /etc/config/smb.conf Public path))"
+        echo "NAS IP address:"
+        ifconfig $(getcfg network 'Default GW Device') | grep addr: | awk '{ print $2 }' | cut -d: -f2
+        echo " " 
+        echo "Default Gateway Device: $(getcfg network 'Default GW Device')" 
+        ifconfig $(getcfg network 'Default GW Device') # | grep -v HWaddr
+        echo -n "DNS in /etc/resolv.conf:" 
+        cat /etc/resolv.conf # | grep nameserver | cut -d ' ' -f2
+        echo " "
+        echo "HDD Information:"
+        echo " "
+        alpha='abcdefghijklmnopqrstuvwxyz'
+        drives=$(getcfg Storage 'Disk Drive Number')
+        for ((i=1;i<=drives;++i)) ; do
+            echo -n "HDD$i -"
+            if [ ! -b /dev/sd${alpha:$i-1:1} ] ; then
+                echo "Drive absent"
+            else
+                hdparm -i /dev/sd${alpha:$i-1:1} | grep "Model"
+                parted /dev/sd${alpha:$i-1:1} print
+                /sbin/get_hd_smartinfo -d $i
+            fi
+        done
+        echo "Volume Status"
+        mdadm -D /dev/md0 /dev/md1 2>/dev/null
+        cat /proc/mdstat
+        echo " "
+        echo "Disk Space:"
+        df -h | grep -v qpkg
+        echo " "
+        echo "Mount Status:" 
+        mount | grep -v qpkg
+        echo " "
+        echo "Contents of $(dirname $(getcfg -f /etc/config/smb.conf Public path)):"
+        echo " "
+        ls -lF $(dirname $(getcfg -f /etc/config/smb.conf Public path))
+        echo " "
+        echo "Windows Shares:"
+        for i in $(grep \] /etc/config/smb.conf | sed 's/^\[//g' | sed 's/\]//g' | grep -v global) ;do 
+            echo -n "$i:"
+            testparm -s -l --section-name="$i" --parameter-name=path 2>/dev/null 
+        done
+        echo " "
+        echo "QNAP Media Scanner / Transcoder processes running: "
+        /bin/ps | grep medialibrary | grep -v grep
+        echo -n "MediaLibrary Configuration file: " 
+        ls -alF /etc/config/medialibrary.conf
+        echo "/etc/config/medialibrary.conf:"
+        cat /etc/config/medialibrary.conf
+        echo " "
+        echo "iTunes Music Store: $(getcfg -f /etc/config/mt-daapd.conf general mp3_dir)"
+        echo " "
+        echo "Memory Information:" 
+        free | grep -v cache:
+    }
+    welcome_msg() {
+        echo -e " "
     }
 fi
 
@@ -1439,6 +1528,9 @@ print_welcome
 #   then use: ~/Dev/Perl/randBytes 1048576 > 10MB.dat
 # 
 # Go http://huawei_routher_address/html/dhcp.html and press F12 and in console put:
+# $('#input_dhcp_subnet_mask').show();
 # $('#dhcp_dns_statistic').show();
 # $('#dhcp_primary_dns').show();
 # $('#dhcp_secondary_dns').show();
+# or create a bookmark with this url:
+# javascript:$('#input_dhcp_subnet_mask').show();$('#dhcp_dns_statistic').show();$('#dhcp_primary_dns').show();$('#dhcp_secondary_dns').show();
