@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "LastUpdate: 30/12/2021 rev1"
+echo "LastUpdate: 19/01/2022 rev2"
 #  Edited by Vincenzo Favara
 #  ---------------------------------------------------------------------------
 #
@@ -378,6 +378,7 @@ alias psmem='ps auxf | sort -nr -k 4'                                           
 alias psmem10='ps auxf | sort -nr -k 4 | head -10'                                                                           #: psmem: get top process eating memory for first 10
 alias pscpu='ps auxf | sort -nr -k 3'                                                                                        #: pscpu: get top process eating cpu
 alias pscpu10='ps auxf | sort -nr -k 3 | head -10'                                                                           #: pscpu10: get top process eating cpu for first 10
+alias ports='sudo lsof -PiTCP -sTCP:LISTEN'                                                                                  #: ports: show ports in listen status
 
 if [[ $(isTermux) == 1 ]]; then
     alias open='termux-open'           #: open: display bash options settings
@@ -694,11 +695,14 @@ vdiff () {  #: vdiff: compare 2 files/folders
 drun() {  #: drun: run docker app -it
     docker run --rm -it -v "${PWD}":/app -w /app
 }
+dnets() {  #: dnets: inspect net ips with their containers
+    docker network inspect -f '{{.Name}} ({{.Driver}}) {{if .IPAM.Config}}{{.IPAM.Config}}{{else}}No ipam configs{{end}} {{range .Containers}}{{println}}    {{.Name}} {{.IPv4Address}} {{else}}{{println}}    No containers {{end}}{{println}}' $(docker network ls --format "{{.ID}}" | awk '{ print $1}')
+}
 dtags() {  #: dtags: retrive remote docker images tags
     image="${1}"
     wget -q "https://registry.hub.docker.com/v1/repositories/${image}/tags" -O - | tr -d '[]" ' | tr '}' '\n' | awk -F: '{print $3}'
 }
-dsearch() {  #: dtags: retrive remote docker images tags
+dsearch() {  #: dsearch: search in docker hub
     txt="${1}"
     wget -q "https://hub.docker.com/api/content/v1/products/search/?q=${txt}" -O - | jq -r '.summaries[] | [.id, .slug]'
 }
