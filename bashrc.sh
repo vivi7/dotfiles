@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "LastUpdate: 19/01/2022 rev2"
+echo "LastUpdate: 27/01/2022 rev9"
 #  Edited by Vincenzo Favara
 #  ---------------------------------------------------------------------------
 #
@@ -143,7 +143,7 @@ _git_config="$(
 [alias]
   alias = !git config --global -l | grep ^alias
   alignstaging = !git checkout staging && git merge develop && git push && git checkout develop
-  amend = commit -n --amend
+  amend = commit -n --amend --no-edit
   assume = update-index --assume-unchanged
   assumed = !git ls-files -v | grep ^h | cut -c 3-
   br = branch
@@ -158,7 +158,7 @@ _git_config="$(
   frune = fetch --prune
   ignore = "!gi() { curl -L -s https://www.gitignore.io/api/$@ ;}; gi"
   last = log -1 HEAD
-  files = printf %"s\n" `git show --pretty="" --name-only HEAD`
+  files = printf %"s\\n" `git show --pretty="" --name-only HEAD`
   lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
   publish = !git push -u origin $( git rev-parse --abbrev-ref HEAD )
   puff = pull --ff
@@ -185,7 +185,7 @@ _git_config="$(
   who = for-each-ref --format='%(committerdate) %(refname) %(authorname)'
   brull = !sh -c 'git fetch origin $1:$1'
   brsls = git for-each-ref --sort=committerdate refs/heads/ --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(color:red)%(objectname:short)%(color:reset) - %(contents:subject) - %(authorname) (%(color:green)%(committerdate:relative)%(color:reset))'
-  bra = !sh -c 'git branch -a | xargs printf %"s\n"'
+  bra = !sh -c 'git branch -a | xargs printf %"s\\n"'
   clbra = !sh -c """for branch in `git branch -a | grep remotes | grep -v HEAD | grep -v master `; do git branch --track ${branch#remotes/origin/} $branch; done"""
 [merge]
   ff = true
@@ -342,7 +342,7 @@ fi
 #                   #
 #####################
 
-alias bashrc_tags="grep -oE '(#): .*' $_bashrc_file_path"                                                                    #: bashrc_tags: show bashrc instruction matching with '#'' and ':'
+alias bashrc_tags="grep -oE '(#): .*' $(pwd)/$_bashrc_file_name"                                                             #: bashrc_tags: show bashrc instruction matching with '#'' and ':'
 alias bashrc_rpl="cat $_bashrc_file_name > $_bashrc_file_path && source $_bashrc_file_path"                                  #: bashrc_rpl: replace old content bashrc file to new one
 alias bashrc_src="source $_bashrc_file_path"                                                                                 #: bashrc_src: source bashrc
 alias bashrc_cat="cat $_bashrc_file_path"                                                                                    #: bashrc_cat: cat bashrc
@@ -442,6 +442,17 @@ fi
 #                   #
 #####################
 
+_copy() { cat | xclip -selection clipboard; }                                                                                                                                              #: _copy: copy to clipboard
+_paste() { xclip -selection clipboard -o; }                                                                                                                                                #: _paste: paste from clipboard
+cal%() {                                                                                                                                                                                   #: cal%: calculate percent passing 3 args
+    # cal% x 10 7 && cal% 70 x 7 && cal% 70 10 x 
+    awk -v a="$1" -v b="$2" -v c="$3" -v perc="%" 'BEGIN {
+        if ( a == "x" ) printf "%.2f%s of %.2f is %.2f\n", c * 100 / b, "%", b, c
+        else if( b == "x" ) printf "%.2f%s of %.2f is %.2f\n", a, "%", 100 / a * c, c
+        else if( c == "x" ) printf "%.2f%s of %.2f is %.2f\n", a, "%", b, a * b / 100
+        else print "Pass 3 args:\nExample: x of 10 is 7 ====> 70%\nExample: 70% of x is 7 ====> 10\nExample: 70% of 10 is x ====> 7"
+    }'
+}
 encrypt() { openssl des3 -in "$1" -out "$2"; }                                                                                                                                             #: encrypt: encrypt file $1 to $2
 decrypt() { openssl des3 -d -in "$1" -out "$2"; }                                                                                                                                          #: decrypt: decrypt file $1 to $2
 remove_ssh_key_for_ip() { ssh-keygen -R "$1"; }                                                                                                                                            #: remove_ssh_key_for_ip: Remove ssh key for provided ip
@@ -549,6 +560,21 @@ shift "$((OPTIND - 1))"
 echo Remaining arguments: "$@"
 EOF
     chmod u+x new_script.sh
+}
+install_must() { #: install_must: Install must have apt packages
+    apt_packages=( \
+        jq vim tree gnu-sed coreutils moreutils \
+        git-quick-stats neofetch \
+        ffmpeg imagemagick youtube-dl \
+        findutils java android-platform-tools \
+        xclip
+    )
+    for apt_package in "${apt_packages[@]}"; do 
+        apt install -y $apt_package
+    done
+    echom "Apts installed successfully." "*" "${green}"
+    config_git
+    install_zsh
 }
 install_zsh() { #: install_zsh: install and set zsh shell
     echo "Do you want to install zsh? (y/n) : "
@@ -1032,6 +1058,8 @@ EOF
 fi
 
 if [[ $(isMac) == 1 ]]; then
+    _copy() { cat | pbcopy; }                                                         #: _copy: copy to MacOS clipboard
+    _paste() { pbpaste; }                                                             #: _paste: paste from MacOS clipboard
     trash() { mv "$@" ~/.Trash; }                                                     #: trash: Moves a file to the MacOS trash
     empty() { sudo rm -rf ~/.Trash/*; }                                               #: empty: Empty MacOS trash
     ql() { qlmanage -p "$*" >&/dev/null; }                                            #: ql: Opens any file in MacOS Quicklook Preview
@@ -1096,26 +1124,39 @@ EOT
         tor
         sudo networksetup -setsocksfirewallproxystate $INTERFACE off
     }
+    _should_load_brew_m1(){ [[ "$(uname -m)" == "arm64" && -f /opt/homebrew/bin/brew ]] && { eval "$(/opt/homebrew/bin/brew shellenv)"; echo "Loaded brew for M1"; } ; } #: _should_load_brew_m1: Check MacOS arc and eval brew path if exist
+    _should_load_brew_m1  # eval for let brew work on m1
     install_must() { #: install_must: Install must have MacOS packages
         xcode-select --install
         [[ -x $(command -v brew) ]] || { /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; }
+        _should_load_brew_m1
+        echom "Turn off brew analytics" "*" "${yellow}"
+        brew analytics off
         echom "Installing brew formulas..." "*" "${yellow}"
-        brew install \
+        brew_formulas=( \
             jq vim tree gnu-sed coreutils moreutils \
             git-quick-stats neofetch \
             ffmpeg imagemagick youtube-dl \
             findutils java android-platform-tools \
             qlcolorcode qlstephen qlmarkdown quicklook-json qlimagesize suspicious-package apparency quicklookase qlvideo \
             qlprettypatch quicklook-csv webpquicklook macdown qlswift
+        )
+        for brew_formula in "${brew_formulas[@]}"; do 
+            brew install $brew_formula
+        done
         echom "Formulas installed successfully." "*" "${green}"
         echom "Installing brew Cask formulas..." "*" "${yellow}"
-        brew install --cask \
-            bettertouchtool \
+        brew_cask_formulas=( \
+            bettertouchtool maccy \
             sourcetree visual-studio-code \
             jdownloader the-unarchiver \
             google-drive google-chrome \
             virtualbox vlc mediainfo spotify \
             telegram-desktop whatsapp zoom slack teamviewer
+        )
+        for brew_cask_formula in "${brew_cask_formulas[@]}"; do 
+            brew install --cask $brew_cask_formula
+        done
         echom "Cask Formulas installed successfully." "*" "${green}"
         cleanBrewCasc
         config_git
