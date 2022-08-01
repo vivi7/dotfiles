@@ -1,5 +1,5 @@
-#!/bin/sh
-echo "LastUpdate: 27/01/2022 rev9"
+#!/usr/bin/env bash
+echo "LastUpdate: 24/07/2022 rev2"
 #  Edited by Vincenzo Favara
 #  ---------------------------------------------------------------------------
 #
@@ -50,6 +50,9 @@ checkOS() {
     *MINGW*) machine=MinGw ;;
     *iSH*) machine=iSH ;;
     *qnap*) machine=qnap ;;
+    *synology*) machine=synology ;;
+    *kali*) machine=kali ;;
+    *parrot*) machine=parrot ;;
     *Linux*) [ -x $(command -v termux-setup-storage) ] && machine=Termux || machine=Linux ;;
     *) machine="UNKNOWN:${unameOut}" ;;
     esac
@@ -60,6 +63,11 @@ isMac() { [[ $(checkOS) == "MacOS" ]] && echo 1 || echo 0; }
 isTermux() { [[ $(checkOS) == "Termux" ]] && echo 1 || echo 0; }
 isIsh() { [[ $(checkOS) == "iSH" ]] && echo 1 || echo 0; }
 isQnap() { [[ $(checkOS) == "qnap" ]] && echo 1 || echo 0; }
+isSynology() { [[ $(checkOS) == "synology" ]] && echo 1 || echo 0; }
+isKali() { [[ $(checkOS) == "kali" ]] && echo 1 || echo 0; }
+isParrot() { [[ $(checkOS) == "parrot" ]] && echo 1 || echo 0; }
+
+_welcome_message="run 'bashrc_tags' (| grep MacOS/Termux/iSH/qnap/synology/kali/parrot) function to know all possible new commands"
 
 #####################
 #                   #
@@ -221,6 +229,36 @@ _git_config="$(
 EOF
 )"
 
+
+_zshrc="$(
+    cat <<\EOF
+export ZSH=$HOME/.oh-my-zsh
+ZSH_THEME="spaceship"
+SPACESHIP_TIME_SHOW="true"
+DISABLE_AUTO_UPDATE="true"
+ENABLE_CORRECTION="true"
+COMPLETION_WAITING_DOTS="true"
+HIST_STAMPS="yyyy-mm-dd"
+plugins=(
+  git  npm  macos  torrent
+  zsh-syntax-highlighting  zsh-autosuggestions  zsh-completions
+)
+source $ZSH/oh-my-zsh.sh
+function zsh_options() {
+    PLUGIN_PATH="$ZSH/plugins/"
+    for plugin in $plugins; do
+        echo "\n\nPlugin: $plugin"; 
+        grep -r "^function \w*" $PLUGIN_PATH$plugin | \
+            awk '{print $2}' | \
+            sed "s/()//" | \ 
+            tr '\n' ', '; 
+        grep -r "^alias" $PLUGIN_PATH$plugin | awk '{print $2}' | sed 's/=.*//' |  tr '\n' ', ' ;
+    done
+}
+
+EOF
+)"
+
 _neofetch_print_info="$(
     cat <<-EOF
 print_info() {
@@ -350,7 +388,7 @@ alias bashrc_edit="nano $_bashrc_file_path"                                     
 # alias chown='chown --preserve-root'                                                                                          #: chown: implementation: Parenting changing perms on
 # alias chmod='chmod --preserve-root'                                                                                          #: chmod: implementation: Parenting changing perms on
 # alias chgrp='chgrp --preserve-root'                                                                                          #: chgrp: implementation: Parenting changing perms on
-alias ls='ls -GFh'                                                                                                           #: ls: implementation
+# alias ls='ls -GFh'                                                                                                           #: ls: implementation
 alias cp='cp -iv'                                                                                                            #: cp: implementation
 alias mv='mv -iv'                                                                                                            #: mv: implementation
 alias mkdir='mkdir -pv'                                                                                                      #: mkdir: implementation
@@ -444,8 +482,8 @@ fi
 
 _copy() { cat | xclip -selection clipboard; }                                                                                                                                              #: _copy: copy to clipboard
 _paste() { xclip -selection clipboard -o; }                                                                                                                                                #: _paste: paste from clipboard
-cal%() {                                                                                                                                                                                   #: cal%: calculate percent passing 3 args
-    # cal% x 10 7 && cal% 70 x 7 && cal% 70 10 x 
+calcp() {                                                                                                                                                                                   #: cal%: calculate percent passing 3 args
+    # calcp x 10 7 && calcp 70 x 7 && calcp 70 10 x 
     awk -v a="$1" -v b="$2" -v c="$3" -v perc="%" 'BEGIN {
         if ( a == "x" ) printf "%.2f%s of %.2f is %.2f\n", c * 100 / b, "%", b, c
         else if( b == "x" ) printf "%.2f%s of %.2f is %.2f\n", a, "%", 100 / a * c, c
@@ -497,6 +535,14 @@ extract() {                                                                     
         echo "'$1' is not a valid file"
     fi
 }
+extract_combine() {
+    NAME="${1}"
+    mkdir -p "${NAME}"
+    find . -name "${NAME}*.zip" -print0 | sort -zk 1nr | while read -d $'\0' archive; do
+        echom "Unzipping $archive" "*" "${yellow}"
+        unzip "$archive" -d "${NAME}"; 
+    done
+}
 clearHistoryLine() { #: clearHistoryLine: Delete last lien of bash history
     last=$1 || 1
     pos=$HISTCMD
@@ -514,6 +560,69 @@ fcll() { #: fcll: file and content in dir and subdir
         cat $fullfile
         echo ''
     done
+}
+bash_func_ls() {  # bash_func_ls: arg filepath return list of all func in file
+    grep -o '^.*()' "${1}" | awk '{print substr($1, 1, length($1)-2)}' | awk '{aggr=aggr $1 " && " $2} END {print aggr}' ; 
+}
+remove_line_contains() { #: remove_line_contains: args: pattern filepath_or_folder
+    pattern="${1}"
+    file_regex="${2}"
+    folder="${3}"
+    for path in $(find $folder -name $file_regex); do
+        echo $path
+        while read -r line; do [[ ! "$line" =~ "$pattern" ]] && echo "$line"; done <$path > $dest ;
+        # mv $dest $path
+    done
+}
+recurse_func() {
+    __path="${1}"
+    shift #args shift after first
+    if [ -d "$__path" ] ; then
+        for __sub_path in "$__path/"* ; do
+            recurse_func "${@}" "${__sub_path}"
+        done
+    elif [ -f "$__path" ] ; then
+        "${@}" "$__path"
+    fi
+}
+mytree() {
+    dir_count=0
+    file_count=0
+    traverse() {
+        dir_count=$(($dir_count + 1))
+        local directory="${1}"
+        local prefix=${2}
+        local __cpath="$directory"/*
+        local children=($__cpath)
+        # local children=($(find "$directory"))
+        # echo "$directory"
+        # [ "$(ls -FGlAhp "$directory")" ] && 
+        #         local children=("$directory"/*) ||
+        #         local children=("$directory") 
+        local child_count=${#children[@]}
+        local idx=0
+        for child in "${children[@]}"; do
+            local child_prefix="│   "
+            local pointer="├── "
+            if [ $idx -eq $((child_count - 1)) ]; then
+                pointer="└── "
+                child_prefix="    "
+            fi
+            [ -f "$child" ] && 
+            local sizef=$(du -h "${child}" | awk '{ print $1}')
+            echo "${prefix}${pointer}${child##*/} $sizef"
+            [ -d "$child" ] &&
+            traverse "$child" "${prefix}$child_prefix" ||
+            file_count=$((file_count + 1))
+            local idx=$(($idx + 1))
+        done
+    }
+    root="."
+    [ "$#" -ne 0 ] && root="$1"
+    echo $root
+    traverse $root ""
+    echo ""
+    echo "$(($dir_count - 1)) directories, $file_count files"
 }
 repeat_cmd_in_folder() { #: repeat_cmd_in_folder: args: single_word_command_or_function folder1 folder2 ....
     cmd_to_repeat=${1}
@@ -594,35 +703,10 @@ install_zsh() { #: install_zsh: install and set zsh shell
         # npm install -g spaceship-prompt
         # cp $HOME/.oh-my-zsh/templates/zshrc.zsh-template $HOME/.zshrc
 
-        echo "Do you want to replace your .zshrc? (y/n) : "
+        echo "Do you want to new setting on your .zshrc? (y/n) : "
         read ZSHRC_REPLY
         [[ "$ZSHRC_REPLY" =~ "y" ]] && {
-            cat >$HOME/.zshrc <<\EOF
-export ZSH=$HOME/.oh-my-zsh
-ZSH_THEME="spaceship"
-SPACESHIP_TIME_SHOW="true"
-DISABLE_AUTO_UPDATE="true"
-ENABLE_CORRECTION="true"
-COMPLETION_WAITING_DOTS="true"
-HIST_STAMPS="yyyy-mm-dd"
-plugins=(
-  git  npm  macos  torrent
-  zsh-syntax-highlighting  zsh-autosuggestions  zsh-completions
-)
-source $ZSH/oh-my-zsh.sh
-function zsh_options() {
-    PLUGIN_PATH="$ZSH/plugins/"
-    for plugin in $plugins; do
-        echo "\n\nPlugin: $plugin"; 
-        grep -r "^function \w*" $PLUGIN_PATH$plugin | \
-            awk '{print $2}' | \
-            sed "s/()//" | \ 
-            tr '\n' ', '; 
-        grep -r "^alias" $PLUGIN_PATH$plugin | awk '{print $2}' | sed 's/=.*//' |  tr '\n' ', ' ;
-    done
-}
-
-EOF
+            echo "${_zshrc}" >$HOME/.zshrc
             echom ".zshrc replaced" "*" "${green}"
             echo "source $_bashrc_file_path" >> $HOME/.zshrc
         }
@@ -766,7 +850,8 @@ wrap_ffmpeg() { #: wrap_ffmpeg: -i mov -o mp4 -j
             -l <list_info>: Put it to have only selected info of all video (info: all|streams|format|title)
             -m <maxdepth>: Put maxdepth number to go deep in folder (default: 1)
             \nExample reduce quality: ffmpeg -i file.mp4 -vf "scale=iw/2:ih/2" -c:v libx264 -b:a 48k JOINED.mp4" "!" "${red}"
-        exit 1
+            # for f in *.mkv; do ffmpeg -i "$f" -qscale 0 -map 0:v -map 0:a "${f%.mkv}.mp4"; done;
+        return
     }
     inputFormat="mp4"
     outputFormat="mp4"
@@ -880,7 +965,7 @@ print_welcome() {
         echo "${_neofetch_print_info}" >$_neofetch_config_file_path
         neofetch --disk_show $_neofetch_arg_disk_show --backend $_neofetch_arg_backend
     }
-    echo "run 'bashrc_tags' (| grep QNAP/Termux/MacOS/iSH) function to know all possible new commands"
+    echo $_welcome_message
     welcome_msg
 }
 
@@ -966,6 +1051,7 @@ _EOF_
             tar git wget curl jq vim tree tmux dnsutils nmap
             nodejs-lts zsh
             ffmpeg imagemagick
+            docker golang make cmake ndk-multilib iproute2
         )
         echom "Installing must have packages..." "*" "${yellow}"
         pkg install -y "${pkg_must[@]}"
@@ -973,6 +1059,20 @@ _EOF_
         echom "Must have packages installed successfully" "*" "${green}"
         config_git
         install_zsh
+    }
+    install_docker() {
+        mkdir $TMPDIR/docker-build
+        cd $TMPDIR/docker-build
+        cd $TMPDIR/docker-build
+        wget https://github.com/krallin/tini/archive/v0.19.0.tar.gz
+        tar xf v0.19.0.tar.gz
+        cd tini-0.19.0
+        mkdir build
+        cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PREFIX ..
+        make -j8
+        make install
+        ln -s $PREFIX/bin/tini-static $PREFIX/bin/docker-init
     }
     install_termux_desktop() { #: install_termux_desktop: Install  desktop Termux packages
         pkg_desktop=(
@@ -1039,6 +1139,27 @@ EOF
         else
             echom "Arg must be: install/uninstall" "!" "${red}"
         fi
+    }
+    docker_network() {       #: docker_network: Make network availabe for all your container and it will also let them communicate with each-other
+        getway=$(ip route get 8.8.8.8 | grep -oP '(?<=via )[^ ]*')  # It will get your current getway ip
+
+        #it will add your getway ip to your iptable rules in android
+        sudo ip route add default via $getway dev wlan0
+        sudo ip rule add from all lookup main pref 30000
+        sudo ip rule add pref 1 from all lookup main
+        sudo ip rule add pref 2 from all lookup default
+    }
+    docker_daemon_start() {   #: docker_daemon_start: It will make storage writable to add some file and folders docker require
+        sudo mount -o remount,rw /
+
+        # It will make cgroup mountable as existing process in dockerd can not mount properly
+        sudo mount -t tmpfs -o mode=755 tmpfs /sys/fs/cgroup
+        sudo mkdir -p /sys/fs/cgroup/devices
+        sudo mount -t cgroup -o devices cgroup /sys/fs/cgroup/devices
+
+        mkdir -p /var/run/
+        sudo mount --bind /data/docker/run/ /var/run/  # It will mount run folder location of docker to official location
+        sudo dockerd # --iptables=false  # start docker - about iptables command not required as we have now network access
     }
     welcome_msg() {
         echo ""
@@ -1136,7 +1257,7 @@ EOT
         brew_formulas=( \
             jq vim tree gnu-sed coreutils moreutils \
             git-quick-stats neofetch \
-            ffmpeg imagemagick youtube-dl \
+            ffmpeg imagemagick youtube-dl kalker \
             findutils java android-platform-tools \
             qlcolorcode qlstephen qlmarkdown quicklook-json qlimagesize suspicious-package apparency quicklookase qlvideo \
             qlprettypatch quicklook-csv webpquicklook macdown qlswift
@@ -1313,7 +1434,7 @@ EOT
 fi
 
 if [[ $(isIsh) == 1 ]]; then
-    staylive() { #: staylive: it is a ios background workaround
+    staylive() { #: staylive: it is a ios background iSH workaround
         CHECK=$(ps -o args | grep "cat /dev/location" | wc -l)
         if [ $CHECK -eq 1 ]; then
             cat /dev/location > /dev/null &
@@ -1336,11 +1457,21 @@ if [[ $(isIsh) == 1 ]]; then
             echom "VNC server is already running." "*" "${yellow}"
         fi
     }
+    configure_ssh_server() { #: configure_ssh_server: configure and run iSH sshd server
+        ssh-keygen -A # create the host keys.
+        passwd # Set a password for root to protect your iOS device
+        echo 'PermitRootLogin yes' >> /etc/ssh/sshd_config
+        echo "Do you want to run ssh server (/usr/sbin/sshd)? (y/n) : "
+        read RUN_REPLY
+        if [[ "$RUN_REPLY" =~ "y" ]]; then
+            /usr/sbin/sshd
+        fi
+    }
     install_must() { #: install_must: Install must have iSH packages
         echom "Installing must have packages..." "*" "${yellow}"
         apk update
         pkg_must=(
-            neofetch openssh git wget curl jq vim tree zsh
+            neofetch openssh openssh-client git wget curl jq vim tree zsh
             ffmpeg imagemagick
             openrc
         )
@@ -1540,6 +1671,35 @@ if [[ $(isQnap) == 1 ]]; then
         echo "Memory Information:" 
         free | grep -v cache:
     }
+    welcome_msg() {
+        echo -e " "
+    }
+fi
+
+if [[ $(isKali) == 1 ]]; then
+    _fix_bluetooth() {                                                          #: _fix_bluetooth: fix bluethoot enabling for Kali OS
+        rfkill unblock bluetooth
+        systemctl enable bluetooth.service
+        systemctl start bluetooth.service
+        sudo systemctl restart bluetooth.service
+    }
+    
+    _fix_printer() {                                                          #: _fix_printer: fix printer adding for Kali OS
+        sudo service cups start
+        sudo apt install cups cups-client cups-filters cups-ipp-utils
+    }
+
+    _fix_docker() {                                                          #: _fix_docker: fix docker adding user to docker group for Kali OS
+        sudo usermod -aG docker $USER
+    }
+fi
+
+if [[ $(isSynology) == 1 ]]; then
+
+    change_docker_group_administrators() {
+        sudo chown root:administrators /var/run/docker.sock
+    }
+    
     welcome_msg() {
         echo -e " "
     }
