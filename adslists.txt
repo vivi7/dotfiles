@@ -1,0 +1,10 @@
+https://github.com/d43m0nhLInt3r/socialblocklists/blob/master/MobileAppAds/appadsblocklist.txt
+https://github.com/d43m0nhLInt3r/socialblocklists/blob/master/Youtube/youtubeADBlocklist
+https://github.com/d43m0nhLInt3r/socialblocklists/blob/master/Youtube/youtubeblocklist.txt
+https://github.com/kboghdady/youTube_ads_4_pi-hole/blob/master/youtubelist.txt
+https://github.com/kboghdady/youTube_ads_4_pi-hole/blob/master/crowed_list.txt
+https://github.com/kboghdady/youTube_ads_4_pi-hole/blob/master/black.list
+https://github.com/tdgomes/Ads-Youtube-PT/blob/master/youtubeads.txt
+https://github.com/whackamole-ytads/pihole-blocklist/blob/master/black.list
+https://www.sunshine.it/blacklist.txt
+https://github.com/d43m0nhLInt3r/socialblocklists/blob/master/TikTok/tiktokblocklistForFritzBox
