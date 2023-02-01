@@ -1,0 +1,29 @@
+name: External Repo
+
+on:
+  external-push:
+    types: [pushed]
+    repo: my-external-repo/project
+  manual:
+    types: [ trigger ]
+
+jobs:
+  checkout:
+    runs-on: ubuntu-latest
+
+    steps:          
+      - name: Check Out Repo 
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.ref }}
+          repository: my-external-repo/project
+
+  call-workflow-passing-data:
+    uses: uses: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}/.github/workflows/docker_publish.yml@main
+    with:
+      PREFIX: ""
+      REPO: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}
+      RELEASE_VERSION: ${GITHUB_REF#refs/*/}
+    secrets:
+      token: ""
+      

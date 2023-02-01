@@ -1,0 +1,52 @@
+name: External Repo
+
+on:
+  external-push:
+    types: [pushed]
+    repo: ellerbrock/openssl-docker
+  workflow_dispatch:
+
+jobs:
+  checkout:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Check Out Repo 
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.ref }}
+          repository: ellerbrock/openssl-docker
+
+      - name: Set env
+        run: |
+          echo "prefix_var=$(git describe --tags `git rev-list --tags --max-count=1`)" >> $GITHUB_ENV
+
+      - name: Dump github context
+        run:   echo "$GITHUB_CONTEXT"
+        shell: bash
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
+
+      - name: Echo variables
+        run: |
+          echo "Hello ${{ github.event.inputs.name }}"
+          echo "du: ${{ secrets.DOCKER_USERNAME }}"
+          echo "github.repository: ${{github.repository}}"
+          echo "prefix_var: ${{ env.prefix_var }}"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+            username: ${{ secrets.DOCKER_USERNAME }}
+            password: ${{ secrets.DOCKER_TOKEN }}
+
+  call-workflow-passing-data:
+    uses: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}/.github/workflows/docker_publish.yml@main
+    with:
+      PREFIX: ${{ secrets.DOCKER_USERNAME }}_
+      REPO: ellerbrock/openssl-docker
+      RELEASE_VERSION: ${{ env.prefix_var }}
+    secrets:
+      token: ""
+      
