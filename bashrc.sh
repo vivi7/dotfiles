@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 24/07/2022 rev2"
+echo "LastUpdate: 2023-12-02 rev1"
 #  Edited by Vincenzo Favara
 #  ---------------------------------------------------------------------------
 #
@@ -53,6 +53,7 @@ checkOS() {
     *synology*) machine=synology ;;
     *kali*) machine=kali ;;
     *parrot*) machine=parrot ;;
+    *pop-os*) machine=popos ;;
     *Linux*) [ -x $(command -v termux-setup-storage) ] && machine=Termux || machine=Linux ;;
     *) machine="UNKNOWN:${unameOut}" ;;
     esac
@@ -66,6 +67,7 @@ isQnap() { [[ $(checkOS) == "qnap" ]] && echo 1 || echo 0; }
 isSynology() { [[ $(checkOS) == "synology" ]] && echo 1 || echo 0; }
 isKali() { [[ $(checkOS) == "kali" ]] && echo 1 || echo 0; }
 isParrot() { [[ $(checkOS) == "parrot" ]] && echo 1 || echo 0; }
+isPop() { [[ $(checkOS) == "pop-os" ]] && echo 1 || echo 0; }
 
 _welcome_message="run 'bashrc_tags' (| grep MacOS/Termux/iSH/qnap/synology/kali/parrot) function to know all possible new commands"
 
@@ -239,6 +241,7 @@ DISABLE_AUTO_UPDATE="true"
 ENABLE_CORRECTION="true"
 COMPLETION_WAITING_DOTS="true"
 HIST_STAMPS="yyyy-mm-dd"
+ZSH_DISABLE_COMPFIX="true"
 plugins=(
   git  npm  macos  torrent
   zsh-syntax-highlighting  zsh-autosuggestions  zsh-completions
@@ -309,6 +312,8 @@ _bashrc_rpl() {
 setps1() {  #: setps1: set ps1
     PS1='\[${usercolor}\]┌─╼ λ\[${endc}\] \[${blue}\w\[${endc}\] \[${purple}$(git branch 2>/dev/null | grep "^*")\[${endc}\] \[${usercolor}\]$\[${endc}\] \[${usercolor}\]\n└──────► \[${endc}\]'
 }
+docker_volume_prefix="$HOME"
+docker_volume_config_prefix="$docker_volume_prefix"
 
 if [[ $(isTermux) == 1 ]]; then
     _bashrc_file_path="$PREFIX/etc/bash.bashrc"
@@ -340,9 +345,15 @@ if [[ $(isTermux) == 1 ]]; then
     rm $HOME/.termux/termux.properties
     _termux_extra_keys="$(
         cat <<-EOF
+            shortcut.create-session=ctrl + t
+            shortcut.next-session=ctrl + 2
+            shortcut.previous-session=ctrl + 1
+            shortcut.rename-session=ctrl + n
+            enforce-char-based-input=true
+            allow-external-apps=true
             extra-keys = [[ \
-            {key:ESC,popup:{macro:'CTRL f d',display:'tmux exit'}}, \
-            {key:FN,popup:{macro:'CTRL ALT c',display:'New Session'}}, \
+            {key:ESC,popup:{macro:'CTRL d',display:'Exit Session'}}, \
+            {key:FN,popup:{macro:'CTRL t',display:'New Session'}}, \
             {key:F1,popup:F7}, \
             {key:F2,popup:F8}, \
             {key:F3,popup:F9}, \
@@ -351,10 +362,10 @@ if [[ $(isTermux) == 1 ]]; then
             {key:F5,popup:F11}, \
             {key:F6,popup:F12} \
             ],[ \
-            {key:TAB,popup:{macro:'CTRL ALT n',display:'Next Session'}}, \
-            {key:CTRL,popup:{macro:'CTRL f BKSP',display:'tmux ←'}}, \
-            {key:ALT, popup: {macro:'CTRL f TAB',display:'tmux →'}}, \
-            {macro:'CTRL ALT v',display:'Paste',popup:{macro:'CTRL ALT u',display:'Select URL'}}, \
+            {key:TAB,popup:{macro:'CTRL n',display:'Name Session'}}, \
+            {key:CTRL,popup:{macro:'CTRL 1',display:'Prev Session'}}, \
+            {key:ALT, popup: {macro:'CTRL 2',display:'Next Session'}}, \
+            {macro:'PASTE',display:'Paste',popup:{macro:'CTRL a',display:'Begin'}}, \
             {key:DEL,popup:INS}, \
             {key:LEFT,popup:HOME}, \
             {key:DOWN,popup:PGDN}, \
@@ -372,6 +383,16 @@ fi
 if [[ $(isMac) == 1 ]]; then
     _bashrc_file_path=~/.bash_profile
     [ -x $(command -v airport) ] || { sudo ln -s /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport /usr/sbin/airport; }
+fi
+
+if [[ $(isQnap) == 1 ]]; then
+    docker_volume_prefix="/share"
+    docker_volume_config_prefix="$docker_volume_prefix/Container"
+fi
+
+if [[ $(isSynology) == 1 ]]; then
+    docker_volume_prefix="/volume1"
+    docker_volume_config_prefix="$docker_volume_prefix/docker"
 fi
 
 #####################
@@ -499,7 +520,9 @@ nomedia() { [ -f ".nomedia" ] && { rm .nomedia; } || { touch .nomedia; }; }     
 findpid() { lsof -t -c "$@"; }                                                                                                                                                             #: findpid: find out the pid (by also regex) of a specified process
 myps() { ps "$@" -u $USER -o pid,%cpu,%mem,start,time,bsdtime,command; }                                                                                                                   #: myps: List processes owned by my user
 ippub() { curl ifconfig.co; }                                                                                                                                                              #: ippub: Public IP Address
-ipwif() { ifconfig | grep 'inet ' | grep -v 127.0.0.1 | awk '{print $2}'; }                                                                                                                #: ipwif: Wlan IP Address
+ipswifi() { ifconfig | grep 'inet ' | grep -v 127.0.0.1 | awk '{print $2}'; }                                                                                                              #: ipwifi: Wlan IP Address
+ipgatewifi() { ip route | grep default | awk '{print $3;}'; }                                                                                                                              #: ipgatewifi: Wlan IP Address
+ipparent() { ip route | grep default | awk '{print $5;}'; }                                                                                                                                #: ipparent: Wlan IP parent
 httpHeaders() { curl -I -L "$@"; }                                                                                                                                                         #: alias httpHeaders: Grabs headers from web page
 httpDebug() { curl "$@" -o /dev/null -w "dns: %{time_namelookup} connect: %{time_connect} pretransfer: %{time_pretransfer} starttransfer: %{time_starttransfer} total: %{time_total}\n"; } #: alias httpDebug: Download a web page and show info on what took time
 cd() { builtin cd "$@" && ll; }                                                                                                                                                            #: cd: Always list directory contents upon 'cd'
@@ -509,11 +532,16 @@ ff() { find . -name "$@"; }                                                     
 ffi() { find ./ -type f -exec file --mime-type {} \; | awk '{if ($NF ~ "image") print $0 }'; }                                                                                             #: ffi: Find images here
 cchown() { [[ $(id -u) -ne 0 ]] && { sudo chown -R $(whoami) "$1"; } || {  chown -R $(whoami) "$1"; } }                                                                                    #: cchown: Change user Owner
 zipf() { zip -r "$1".zip "$1"; }                                                                                                                                                           #: zipf: To create a ZIP archive of a folder
+gitbranch () { git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/@\1 /' ; }                                                                                                       #: gitbranch: print git branch
 addpath() {                                                                                                                                                                                #: addpath: add safety path to PATH var
     if [[ ! -d "$1" ]]; then echom "$1 not exist" "!" "${red}"; 
     elif [[ ":$PATH:" == *":$path_to_add:"* ]]; then echom "$1 already added" "-" "${yellow}"; 
     else PATH="${PATH:+"$PATH:"}$1" && echom "$PATH" "*" "${green}"; 
     fi
+}
+load_envs() {                                                                                                                                                                              #: load_envs:  Load .env files given a path or in the run dir
+    _path="${1:-"."}"
+    find "$_path" -maxdepth 1 -name '*.env' -print | while read env; do source "$env"; done
 }
 extract() {                                                                                                                                                                                #: extract:  Extract most know archives with one command
     if [ -f $1 ]; then
@@ -543,7 +571,7 @@ extract_combine() {
         unzip "$archive" -d "${NAME}"; 
     done
 }
-clearHistoryLine() { #: clearHistoryLine: Delete last lien of bash history
+clear_history_line() { #: clear_history_line: $1 || 1 ; Delete last lien of bash history
     last=$1 || 1
     pos=$HISTCMD
     start=$(($pos - ${last}))
@@ -670,27 +698,22 @@ echo Remaining arguments: "$@"
 EOF
     chmod u+x new_script.sh
 }
-install_must() { #: install_must: Install must have apt packages
-    apt_packages=( \
-        jq vim tree gnu-sed coreutils moreutils \
-        git-quick-stats neofetch \
-        ffmpeg imagemagick youtube-dl \
-        findutils java android-platform-tools \
-        xclip
-    )
-    for apt_package in "${apt_packages[@]}"; do 
-        apt install -y $apt_package
-    done
-    echom "Apts installed successfully." "*" "${green}"
-    config_git
-    install_zsh
+install_quickemu() {
+    git clone https://github.com/wmutschl/quickemu ~/quickemu
+    sudo apt install snapd bsdgames wget
+    sudo snap install qemu-virgil
+    sudo snap connect qemu-virgil:kvm
+    sudo snap connect qemu-virgil:raw-usb
+    sudo snap connect qemu-virgil:removable-media
+    sudo snap connect qemu-virgil:audio-record
+    sudo ln -s ~/quickemu/quickemu /home/$USER/.local/bin/quickemu
 }
 install_zsh() { #: install_zsh: install and set zsh shell
     echo "Do you want to install zsh? (y/n) : "
     read ZSH_REPLY
     [[ "$ZSH_REPLY" =~ "y" ]] && {
         mkdir -p $HOME/.oh-my-zsh
-        git clone --depth 1 git://github.com/robbyrussell/oh-my-zsh.git $HOME/.oh-my-zsh
+        git clone --depth 1 https://github.com/ohmyzsh/ohmyzsh.git $HOME/.oh-my-zsh
         cchown .oh-my-zsh
         # git clone https://github.com/zdharma/fast-syntax-highlighting.git $HOME/.oh-my-zsh/custom/plugins/fast-syntax-highlighting
         git clone https://github.com/zsh-users/zsh-syntax-highlighting.git $HOME/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
@@ -801,20 +824,6 @@ vdiff () {  #: vdiff: compare 2 files/folders
     else
         vim -d "${left}" "${right}"
     fi
-}
-drun() {  #: drun: run docker app -it
-    docker run --rm -it -v "${PWD}":/app -w /app
-}
-dnets() {  #: dnets: inspect net ips with their containers
-    docker network inspect -f '{{.Name}} ({{.Driver}}) {{if .IPAM.Config}}{{.IPAM.Config}}{{else}}No ipam configs{{end}} {{range .Containers}}{{println}}    {{.Name}} {{.IPv4Address}} {{else}}{{println}}    No containers {{end}}{{println}}' $(docker network ls --format "{{.ID}}" | awk '{ print $1}')
-}
-dtags() {  #: dtags: retrive remote docker images tags
-    image="${1}"
-    wget -q "https://registry.hub.docker.com/v1/repositories/${image}/tags" -O - | tr -d '[]" ' | tr '}' '\n' | awk -F: '{print $3}'
-}
-dsearch() {  #: dsearch: search in docker hub
-    txt="${1}"
-    wget -q "https://hub.docker.com/api/content/v1/products/search/?q=${txt}" -O - | jq -r '.summaries[] | [.id, .slug]'
 }
 decrease_quality_image() { #: decrease_quality_image: Decrease image quality to 90%
     _regex=$1 || '*.jpg'
@@ -959,6 +968,173 @@ wrap_ffmpeg() { #: wrap_ffmpeg: -i mov -o mp4 -j
         echom "Joined Successfully" "*" "${green}"
     }
 }
+docker-container-by-image() {
+    docker ps -a -q --filter ancestor=${1} --format="{{.ID}}" #tag
+    docker ps -a | awk -v i="^$1.*" '{if($2~i){ print $1 }}' #name
+    for im in $(docker images -f "dangling=true" |  awk '{ print $3 }' | tail -n +2); do docker ps -a | awk -v i=${im} '{if($2~i){ print $1 }}'; done
+} #: : docker stop and remove
+dockerrm() { #: dockerrm: docker stop and remove
+    # docker stop $1 && docker rm $1
+    docker rm $(docker stop ${1})
+}
+dockerrun() {  #: dockerrun: run docker app -it
+    docker run --rm -it -v "${PWD}":/app -w /app
+}
+dockernets() {  #: dockernets: inspect net ips with their containers
+    docker network inspect -f '{{.Name}} ({{.Driver}}) {{if .IPAM.Config}}{{.IPAM.Config}}{{else}}No ipam configs{{end}} {{range .Containers}}{{println}}    {{.Name}} {{.IPv4Address}} {{else}}{{println}}    No containers {{end}}{{println}}' $(docker network ls --format "{{.ID}}" | awk '{ print $1}')
+}
+dockertags() {  #: dockertags: retrive remote docker images tags
+    image="${1}"
+    wget -q "https://registry.hub.docker.com/v1/repositories/${image}/tags" -O - | tr -d '[]" ' | tr '}' '\n' | awk -F: '{print $3}'
+}
+dockersearch() {  #: ddockersearch: search in docker hub
+    txt="${1}"
+    wget -q "https://hub.docker.com/api/content/v1/products/search/?q=${txt}" -O - | jq -r '.summaries[] | [.id, .slug]'
+}
+check_docker() { #: check_docker: Check Synology docker permission instance
+    if [[ ! $(cat /etc/group | grep docker) =~ $USER ]]; then
+        echo -e "
+        Creating docker group, adding $USER into it and changing docker.sock owner
+        If you get again issue please run follow command:
+            sudo chown root:administrators /var/run/docker.sock" 
+    fi
+}
+dockermacvlan() {  #: dockermacvlan: Create MacVLan network as the host one
+    check_docker
+    docker network ls | grep VLAN_NAS > /dev/null || {
+        docker network create \
+            --driver=macvlan \
+            --gateway=$(ipgatewifi) \
+            --subnet=$(ipgatewifi | awk '{print substr($1, 1, length($1)-1);}')0/24 \
+            --ip-range=$(ipgatewifi | awk '{print substr($1, 1, length($1)-1);}')254/32 \
+            -o parent=$(ipparent) \
+            VLAN_NAS
+    }
+    docker inspect VLAN_NAS
+}
+dockerwatch() {  #: dockerwatch: Container with watchtower that watch docker instance and update the images if there are new ones
+    check_docker
+    docker run --detach --name watchtower \
+        -v /var/run/docker.sock:/var/run/docker.sock  \
+        containrrr/watchtower
+    docker ps
+}
+dockerportainer() {  #: dockerportainer: Container with portainer-ce
+    check_docker
+    docker run --detach --name portainer-ce \
+        -p 8000:8000 \
+        -p 9000:9000 \
+        --restart=always \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v portainer-ce_data:/data \
+        portainer/portainer-ce \
+        --admin-password=$PORTAINER_ADMIN_PASSWORD
+    docker ps
+}
+dockertdd() {  #: dockertdd: Container with telegram-download-demon
+    mkdir -p $docker_volume_prefix/Downloads/Telegram
+    check_docker
+    docker run --detach --name telegram-download-daemon \
+        -v $docker_volume_prefix/Downloads/Telegram:/telegram-downloads \
+        -e TELEGRAM_DAEMON_API_ID=$TELEGRAM_DAEMON_MAIN_API_ID \
+        -e TELEGRAM_DAEMON_API_HASH=$TELEGRAM_DAEMON_MAIN_API_HASH \
+        -e TELEGRAM_DAEMON_CHANNEL=$TELEGRAM_DAEMON_MAIN_CHANNEL \
+        -e TELEGRAM_DAEMON_BOT_TOKEN=$TELEGRAM_DAEMON_MAIN_BOT_TOKEN \
+        -e PUID=${UID} \
+        -e PGID=${GID} \
+        vivi7/telegram-download-daemon:latest
+    docker ps
+}
+dockertddc() {  #: dockertdd: Container with telegram-download-demon cc
+    mkdir -p $docker_volume_prefix/system_files/ccc
+    check_docker
+    docker run --detach --name tdd-ccc \
+        -v $docker_volume_prefix/system_files/ccc:/telegram-downloads \
+        -e TELEGRAM_DAEMON_API_ID=$TELEGRAM_DAEMON_CC_API_ID \
+        -e TELEGRAM_DAEMON_API_HASH=$TELEGRAM_DAEMON_CC_API_HASH \
+        -e TELEGRAM_DAEMON_CHANNEL=$TELEGRAM_DAEMON_CC_CHANNEL \
+        -e TELEGRAM_DAEMON_BOT_TOKEN=$TELEGRAM_DAEMON_CC_BOT_TOKEN \
+        -e PUID=${UID} \
+        -e PGID=${GID} \
+        vivi7/telegram-download-daemon:latest
+    docker ps
+}
+dockertdlfb() {  #: dockertdlfb: Container with telegram-dtlkfb-bot
+    mkdir -p $docker_volume_prefix/DWeb/DataleakFB
+    check_docker
+    docker run --detach --name DataleakFB-bot \
+        --restart=always \
+        -v $docker_volume_prefix/DWeb/DataleakFB:/resources \
+        -e TELEGRAM_BOT_TOKEN=$TELEGRAM_DATALAKEFB_BOT_TOKEN \
+        -e PUID=${UID} \
+        -e PGID=${GID} \
+        vivi7/telegram-dtlkfb-bot:latest
+    docker ps
+}
+dockerchormejdownloader() {  #: dockerchormejdownloader: Container with jdownloader and chrome
+    mkdir -p $docker_volume_config_prefix/jdownloader/folderwatch
+    docker run --detach --name chrome-jdownloader-2 \
+        --restart always \
+        -v $docker_volume_prefix/Downloads/jdownloader:/usr/jd2/@download \
+        -e TZ=Europe/Rome \
+        -e LANG=it_IT.UTF-8 \
+        -e LANGUAGE=it_IT \
+        -e LC_ALL=it_IT.UTF-8 \
+        -e DISPLAY=:0 \
+        -e VNC_PORT=5900 \
+        -e VNC_PW=$JDOWNLOADER_VNC_PASSWORD \
+        -e RESOLUTION=1280x768x16 \
+        -e JDOWNLOADER2_AUTO_START=yes \
+        -e JDOWNLOADER2_AUTO_RESTART=yes \
+        -p 5900:5900 \
+        -e PUID=$(id -u ${USER}) \
+        -e PGID=$(id -g ${USER}) \
+        --network VLAN_NAS \
+        --ip "$(ipgatewifi | awk '{print substr($1, 1, length($1)-1);}')253" \
+        raykuo/chrome-jdownloader2
+    docker ps
+}
+dockermega() {  #: dockermega: Container with Mega client 
+    mkdir -p $docker_volume_prefix/Downloads/Mega
+    docker run  --detach --name MegaDL \
+        --restart always \
+        -v $docker_volume_prefix/Downloads/Mega:/output \
+        -v mega_config:/config \
+        -e VNC_PASSWORD=$MEGA_VNC_PASSWORD \
+        -p 5800:5800 \
+        -p 5900:5900 \
+        -e PUID=$(id -u ${USER}) \
+        -e PGID=$(id -g ${USER}) \
+        --network VLAN_NAS \
+        --ip "$(ipgatewifi | awk '{print substr($1, 1, length($1)-1);}')252" \
+        gauravsuman007/megabasterd
+    docker ps
+}
+dockervscode() {  #: dockervscode: Container with vscode
+    mkdir -p $docker_volume_config_prefix/CodeServer/config/code-server
+    check_docker
+    docker run --detach \
+        --name code-server \
+        --privileged \
+        -h codeserver \
+        -v data:/data \
+        -v $docker_volume_config_prefix/CodeServer/config:/home/coder/.config \
+        -v $docker_volume_prefix/Workspaces:/home/WS \
+        -v data:/home/.local/share/code-server \
+        -p 3991:8080 \
+        -e TZ=Europe/Rome \
+        -e PASSWORD=password \
+        -e HASHED_PASSWORD= \
+        -e SUDO_PASSWORD=$VSCODE_VNC_PASSWORD \
+        -e SUDO_PASSWORD_HASH= \
+        -e DEFAULT_WORKSPACE=/home/WS \
+        -e PUID=${UID} \
+        -e PGID=${GID} \
+        --network VLAN_NAS \
+        --ip "$(ipgatewifi | awk '{print substr($1, 1, length($1)-1);}')251" \
+        codercom/code-server:latest
+    docker ps
+}
 print_welcome() {
     echo '$HOME: '${HOME}
     [[ -x $(command -v neofetch) ]] && {
@@ -1060,20 +1236,6 @@ _EOF_
         config_git
         install_zsh
     }
-    install_docker() {
-        mkdir $TMPDIR/docker-build
-        cd $TMPDIR/docker-build
-        cd $TMPDIR/docker-build
-        wget https://github.com/krallin/tini/archive/v0.19.0.tar.gz
-        tar xf v0.19.0.tar.gz
-        cd tini-0.19.0
-        mkdir build
-        cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PREFIX ..
-        make -j8
-        make install
-        ln -s $PREFIX/bin/tini-static $PREFIX/bin/docker-init
-    }
     install_termux_desktop() { #: install_termux_desktop: Install  desktop Termux packages
         pkg_desktop=(
             bc bmon calcurse dbus fsmon man mpc mpd ncmpcpp startup-notification xmlstarlet xorg-xrdb
@@ -1140,16 +1302,14 @@ EOF
             echom "Arg must be: install/uninstall" "!" "${red}"
         fi
     }
-    docker_network() {       #: docker_network: Make network availabe for all your container and it will also let them communicate with each-other
-        getway=$(ip route get 8.8.8.8 | grep -oP '(?<=via )[^ ]*')  # It will get your current getway ip
-
+    docker_network() {       #: docker_network: Make Termux network availabe for all your container and it will also let them communicate with each-other
         #it will add your getway ip to your iptable rules in android
-        sudo ip route add default via $getway dev wlan0
+        sudo ip route add default via $ipgatewifi dev wlan0
         sudo ip rule add from all lookup main pref 30000
         sudo ip rule add pref 1 from all lookup main
         sudo ip rule add pref 2 from all lookup default
     }
-    docker_daemon_start() {   #: docker_daemon_start: It will make storage writable to add some file and folders docker require
+    docker_daemon_start() {   #: docker_daemon_start: It will make Termux storage writable to add some file and folders docker require
         sudo mount -o remount,rw /
 
         # It will make cgroup mountable as existing process in dockerd can not mount properly
@@ -1179,6 +1339,8 @@ EOF
 fi
 
 if [[ $(isMac) == 1 ]]; then
+    ipgatewifi() { netstat -nr | grep UGScg | awk '{print $2;}'; }                    #: ipgatewifi: MacOS Wlan IP Address
+    ipparent() { netstat -nr | grep UGScg | awk '{print $4;}'; }                      #: ipparent: MacOS Wlan IP parent
     _copy() { cat | pbcopy; }                                                         #: _copy: copy to MacOS clipboard
     _paste() { pbpaste; }                                                             #: _paste: paste from MacOS clipboard
     trash() { mv "$@" ~/.Trash; }                                                     #: trash: Moves a file to the MacOS trash
@@ -1468,7 +1630,7 @@ if [[ $(isIsh) == 1 ]]; then
         fi
     }
     install_must() { #: install_must: Install must have iSH packages
-        echom "Installing must have packages..." "*" "${yellow}"
+        echom "Starting installation must have packages..." "*" "${yellow}"
         apk update
         pkg_must=(
             neofetch openssh openssh-client git wget curl jq vim tree zsh
@@ -1598,7 +1760,7 @@ if [[ $(isQnap) == 1 ]]; then
         chmod +x /bin/neofetch
     }
     install_must() { #: install_must: Install must have QNAP packages
-        echom "Installing must have packages..." "*" "${yellow}"
+        echom "Starting installation must have packages..." "*" "${yellow}"
         opkg update
         pkg_must=( 
             git git-http wget curl jq vim tree zsh
@@ -1676,8 +1838,85 @@ if [[ $(isQnap) == 1 ]]; then
     }
 fi
 
+if [[ $(isSynology) == 1 ]]; then
+
+    check_docker() { #: check_docker: Check Synology docker permission instance
+        if [[ ! $(cat /etc/group | grep docker) =~ $USER ]]; then
+            echo -e "
+            Creating docker group, adding $USER into it and changing docker.sock owner
+            If you get again issue please run follow command:
+                sudo chown root:administrators /var/run/docker.sock" 
+            sudo synogroup --add docker 
+            sudo synogroup --member docker $USER 
+            sudo chown root:docker /var/run/docker.sock 
+        fi
+    }
+
+    _fix_macvlan_vmm_vswitch() { #: _fix_macvlan_vmm_vswitch: remove and create again MacVLan after Synology vSwitch
+        docker network rm VLAN_NAS
+        dockermacvlan
+        docker ps -f "status=exited" | awk '!/NAMES/ {print $NF;}' | xargs -I@ bash -c "xargs docker network connect VLAN_NAS @ && docker start @" 
+    }
+
+    install_must() { #: install_must: Install must have Sonology packages
+        echom "Starting installation must have packages..." "*" "${yellow}"
+
+        pkg_must=(
+            
+        )
+        
+        echom "Nas Main Menu -> Package Center -> Settings -> Package Sources tab, click Add" "!" "${yellow}"
+        echom "Type SynoCommunity as Name and https://packages.synocommunity.com/ as Location, press OK" "!" "${yellow}"
+
+        echo "Did you do it? (yes/no) : "
+        read PACKAGE_REPLY
+        [[ "$PACKAGE_REPLY" =~ "y" ]] && {
+             echom "Adding SynoCommunity packages to the queue..." "*" "${yellow}"
+             pkg_must+=(
+                synocli-disk-3.3-9
+             )
+        }
+        
+        echom "Installing must have packages..." "*" "${yellow}"
+        for pkg in "${pkg_must[@]}"; do
+            echo -e "\n\nInstalling $pkg:"
+            sudo synopkg install $pkg
+            echo -e "\n\n"
+        done
+        # sudo synopkg install "${pkg_must[@]}"
+        echom "Must have packages installed successfully" "*" "${green}"
+        config_git
+        install_zsh
+    }
+
+    enable_usb_supporter() {
+        /sbin/modprobe usbserial
+        /sbin/modprobe ftdi_sio
+        /sbin/modprobe cdc-acm
+        chmod 777 /dev/ttyUSB0 
+        chmod 777 /dev/ttyACM0
+        echo -e "
+        Install community package: 
+            SynoCli Kernel Tools
+            SynoKernel USB Serial drivers
+
+        They will support:
+            CC2531 Dongle Zigbee Supported on DSM 7.
+            CC2652RB Supported on DSM 7.
+            Wireless USB ASUS NANO N10 Supported on DSM 7.
+            ConBee II Zigbee Supported on DSM 7.
+            Z-Wave Stick Supported on DSM 7.
+            3D Printers Supported on DSM 7.
+        "
+    }
+    
+    welcome_msg() {
+        echo -e " "
+    }
+fi
+
 if [[ $(isKali) == 1 ]]; then
-    _fix_bluetooth() {                                                          #: _fix_bluetooth: fix bluethoot enabling for Kali OS
+    _fix_bluetooth() {                                                        #: _fix_bluetooth: fix bluethoot enabling for Kali OS
         rfkill unblock bluetooth
         systemctl enable bluetooth.service
         systemctl start bluetooth.service
@@ -1689,22 +1928,69 @@ if [[ $(isKali) == 1 ]]; then
         sudo apt install cups cups-client cups-filters cups-ipp-utils
     }
 
-    _fix_docker() {                                                          #: _fix_docker: fix docker adding user to docker group for Kali OS
+    _fix_docker() {                                                           #: _fix_docker: fix docker adding user to docker group for Kali OS
         sudo usermod -aG docker $USER
     }
 fi
 
-if [[ $(isSynology) == 1 ]]; then
+if [[ $(isParrot) == 1 ]]; then
+    install_must() { #: install_must: Install must have Parrot OS packages
+        sudo apt update 
 
-    change_docker_group_administrators() {
-        sudo chown root:administrators /var/run/docker.sock
+        apt_packages=( \
+            jq vim tree gnu-sed coreutils moreutils \
+            git-quick-stats neofetch \
+            ffmpeg imagemagick youtube-dl \
+            findutils java android-platform-tools \
+            xclip caffeine \
+            gparted snapd nautilus-admin gnome-tweaks \
+            code \
+            google-chrome-stable chrome-gnome-shell
+        )
+        for apt_package in "${apt_packages[@]}"; do 
+            apt install -y $apt_package
+        done
+        echom "Apts installed successfully." "*" "${green}"
+        echom "flatpak install flathub org.kde.haruna" "*" "${green}"
+        echom "flatpak run org.kde.haruna" "*" "${green}"
+
+        config_git
+        install_zsh
     }
-    
-    welcome_msg() {
-        echo -e " "
+    install_chrome() { #: install_chrome: Install google chrome
+        # wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+        # sudo dpkg -I google-chrome-stable_current_amd64.deb && rm google-chrome-stable_current_amd64.deb
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmour -o /usr/share/keyrings/google_linux_signing_key.gpg
+        sudo sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google_linux_signing_key.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list'
+        sudo apt update && sudo apt install -y google-chrome-stable chrome-gnome-shell
     }
 fi
 
+if [[ $(isPop) == 1 ]]; then
+    install_anonsurf() { #: install_anonsurf: Install anonsurf
+        git clone https://github.com/Und3rf10w/kali-anonsurf.git && cd kali-anonsurf
+        sudo ./installer.sh && cd ..
+    }
+    popupdate() {  #: popupdate: Update all Pop OS
+        sudo apt update
+        sudo apt upgrade
+        sudo apt dist-upgrade
+        sudo apt autoremove
+        sudo apt autoclean
+        sudo fwupdmgr get-devices
+        sudo fwupdmgr get-updates
+        sudo fwupdmgr update
+        flatpak update
+        sudo pop-upgrade recovery upgrade from-release # this updates the recovery partition
+        echo "Do you want to reboot? (y/n) : "
+        read REBOOT_REPLY
+        [[ "$REBOOT_REPLY" =~ "y" ]] && {
+            sudo reboot now
+        }
+    }
+fi
+
+load_envs
 _bashrc_rpl $1
 print_welcome
 
@@ -1739,3 +2025,9 @@ print_welcome
 # $('#dhcp_secondary_dns').show();
 # or create a bookmark with this url:
 # javascript:$('#input_dhcp_subnet_mask').show();$('#dhcp_dns_statistic').show();$('#dhcp_primary_dns').show();$('#dhcp_secondary_dns').show();
+
+
+
+# No GUI on launch, fresh install
+# sudo mount -o remount,rw /dev/YOUR_PARTITION /
+# and than upgrade will fix
