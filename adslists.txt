@@ -8,3 +8,4 @@ https://github.com/tdgomes/Ads-Youtube-PT/blob/master/youtubeads.txt
 https://github.com/whackamole-ytads/pihole-blocklist/blob/master/black.list
 https://www.sunshine.it/blacklist.txt
 https://github.com/d43m0nhLInt3r/socialblocklists/blob/master/TikTok/tiktokblocklistForFritzBox
+https://raw.githubusercontent.com/d3ward/toolz/master/src/d3host.txt
