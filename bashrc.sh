@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2023-12-02 rev1"
+echo "LastUpdate: 2024-02-24 rev2"
 #  Edited by Vincenzo Favara
 #  ---------------------------------------------------------------------------
 #
@@ -844,6 +844,21 @@ install_vscode_ext() { #: install_vscode_ext: Install extension for vscode
     code --install-extension rangav.vscode-thunder-client
     code --install-extension Shan.code-settings-sync
 }
+heic2jpg() { #: heic2jpg: convert heic to jpj in folder
+    if ! command -v convert &> /dev/null; then
+        echo "Error: ImageMagick is not installed. Please install it and try again." 
+        exit 1
+    fi
+    IN_EXT="${1:-HEIC}"
+    echo "Do you want to delete .heic files after conversion? (y/n) : "
+    read DEL_REPLY
+    [[ "$DEL_REPLY" =~ "y" ]] && { TO_DEL=1 ; }
+    for file in *.$IN_EXT; do
+        filename="${file%.*}"
+        convert "$file" "${filename}.jpg"
+        [[ $TO_DEL == 1 ]] && { rm "$file" ; }
+    done
+}
 wrap_ffmpeg() { #: wrap_ffmpeg: -i mov -o mp4 -j
     [ -x $(command -v ffmpeg) ] || {
         echom "I require ffmpeg but it's not installed." "!" "${red}"
@@ -968,11 +983,11 @@ wrap_ffmpeg() { #: wrap_ffmpeg: -i mov -o mp4 -j
         echom "Joined Successfully" "*" "${green}"
     }
 }
-docker-container-by-image() {
+docker-container-by-image() { #: docker-container-by-image: get docker container by image
     docker ps -a -q --filter ancestor=${1} --format="{{.ID}}" #tag
     docker ps -a | awk -v i="^$1.*" '{if($2~i){ print $1 }}' #name
     for im in $(docker images -f "dangling=true" |  awk '{ print $3 }' | tail -n +2); do docker ps -a | awk -v i=${im} '{if($2~i){ print $1 }}'; done
-} #: : docker stop and remove
+}
 dockerrm() { #: dockerrm: docker stop and remove
     # docker stop $1 && docker rm $1
     docker rm $(docker stop ${1})
@@ -1302,6 +1317,28 @@ EOF
             echom "Arg must be: install/uninstall" "!" "${red}"
         fi
     }
+    install_kali_nethunter_desktop() {       #: install_kali_nethunter_desktop: Install kali net hunter in Termux os
+        termux-setup-storage
+        pkg install wget
+        wget -O install-nethunter-termux https://offs.ec/2MceZWr
+        chmod +x install-nethunter-termux
+        ./install-nethunter-termux
+
+        echo -e "
+nethunter	            -> start Kali NetHunter command line interface
+nethunter kex passwd	-> configure the KeX password (only needed before 1st use)
+nethunter kex &	        -> start Kali NetHunter Desktop Experience user sessions
+nethunter kex stop	    -> stop Kali NetHunter Desktop Experience
+nethunter <command>	    -> run in NetHunter environment
+nethunter -r	        -> start Kali NetHunter cli as root
+nethunter -r kex passwd	-> configure the KeX password for root
+nethunter -r kex &	    -> start Kali NetHunter Desktop Experience as root
+nethunter -r kex stop	-> stop Kali NetHunter Desktop Experience root sessions
+nethunter -r kex kill	-> Kill all KeX sessions
+nethunter -r <command>	-> run <command> in NetHunter environment as root
+More instructions here: -> https://www.kali.org/docs/nethunter/nethunter-rootless
+"
+    }
     docker_network() {       #: docker_network: Make Termux network availabe for all your container and it will also let them communicate with each-other
         #it will add your getway ip to your iptable rules in android
         sudo ip route add default via $ipgatewifi dev wlan0
@@ -1323,7 +1360,8 @@ EOF
     }
     welcome_msg() {
         echo ""
-        echo -e "# Hardware Keyboard
+        echo -e " 
+# Hardware Keyboard
 # Ctrl + Alt + C → Create new session
 # Ctrl + Alt + R → Rename current session
 # Ctrl + Alt + Down arrow (or N) → Next session
@@ -1334,7 +1372,16 @@ EOF
 # Ctrl + Alt + U → Select URL
 # Ctrl + Alt + V → Paste
 # Ctrl + Alt + +/- → Adjust text size
-# Ctrl + Alt + 1-9 → Go to numbered session"
+# Ctrl + Alt + 1-9 → Go to numbered session
+
+# Update and install openssh and set password with:
+pkg update && pkg install openssh && ssh-keygen -A && whoami && passwd
+
+# To copy a file into termux:
+scp -P 8022 bashrc.sh user@192.168.xxx.xxx:/data/data/com.termux/files/home/
+termux-setup-storage
+scp -P 8022 <file_name> user@<ip>:/sdcard/Download/
+"
     }
 fi
 
