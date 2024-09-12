@@ -131,7 +131,7 @@ set statusline+=\ %4*\              " Padding & switch colour
 set statusline+=of                  " of Text
 set statusline+=\                   " Padding
 set statusline+=%L                  " Total line
-set statusline+=\                   " Padding
+set statusline+=\                   " Padding 
 
 EOF
 )"
@@ -570,6 +570,28 @@ extract_combine() {
         echom "Unzipping $archive" "*" "${yellow}"
         unzip "$archive" -d "${NAME}"; 
     done
+}
+join_files() { #: join_files: Join file contained into a provided folder
+    folder="${1}" || "."
+    file_output="joined.txt"
+    function join_files() {
+        file_input="$1"
+        echo $file_input
+        if [ -s "$file_input" ]; then
+            echo "" >> "$file_output"
+            echo "------------------------------------------------------------------------------------" >> "$file_output"
+            echo "$file_input" >> "$file_output"
+            echo "" >> "$file_output"
+        fi
+        cat "$file_input" >> "$file_output"
+    }
+    echo "" > "$file_output"
+    files=( $(find "$folder" -type f) )
+    for file in "${files[@]}"; do
+        join_files "$file"
+    done
+
+    echo "Done in: $file_output"
 }
 clear_history_line() { #: clear_history_line: $1 || 1 ; Delete last lien of bash history
     last=$1 || 1
@@ -1251,14 +1273,39 @@ _EOF_
         config_git
         install_zsh
     }
+    startx_native() {
+        # Kill open X11 processes
+        kill -9 $(pgrep -f "termux.x11") 2>/dev/null
+        
+        # Enable PulseAudio over Network
+        pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1
+
+        # Prepare termux-x11 session
+        export XDG_RUNTIME_DIR=${TMPDIR}
+        termux-x11 :0 >/dev/null &
+        sleep 3 ;  # Wait a bit until termux-x11 gets started.
+
+        # Launch Termux X11 main activity
+        am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity > /dev/null 2>&1
+        sleep 1
+
+        # Set audio server
+        export PULSE_SERVER=127.0.0.1
+
+        # Run XFCE4 Desktop
+        env DISPLAY=:0 dbus-launch --exit-with-session xfce4-session & > /dev/null 2>&1
+
+        # nethunter -r  'export PULSE_SERVER=127.0.0.1 && export XDG_RUNTIME_DIR=${TMPDIR} && su - kali -c "env DISPLAY=:0 startxfce4"'
+
+        exit 0
+    }
     install_termux_desktop() { #: install_termux_desktop: Install  desktop Termux packages
         pkg_desktop=(
-            bc bmon calcurse dbus fsmon man mpc mpd ncmpcpp startup-notification xmlstarlet xorg-xrdb
-            desktop-file-utils
-            openbox obconf xorg-xsetroot xcompmgr xfce4-settings xfce4-session polybar libnl rofi
-            xfce4-terminal thunar pcmanfm xarchiver
-            feh xbitmaps cmus cava pulseaudio
-            geany netsurf tigervnc
+            x11-repo termux-x11-nightly
+            pulseaudio
+            xfce4 tur-repo
+            chromium
+            code-oss
         )
         echo "Related pkgs are:" "${pkg_desktop[@]}"
         echo "Do you want termux-desktop? (install/uninstall) : "
