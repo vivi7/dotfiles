@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-13 rev9"
+echo "LastUpdate: 2024-09-13 rev11"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
@@ -54,7 +54,7 @@ checkOS() {
     esac
     echo ${machine}
 }
-echo "checkOS: $(checkOS)"
+echo "check OS condition platform: $(checkOS)"
 isMac() { [[ $(checkOS) == "MacOS" ]] && echo 1 || echo 0; }
 isTermux() { [[ $(checkOS) == "Termux" ]] && echo 1 || echo 0; }
 isIsh() { [[ $(checkOS) == "iSH" ]] && echo 1 || echo 0; }
@@ -850,11 +850,12 @@ dockervscode() {
 
 _DESCRIPTIONS+=('get_system_info: Display detailed system information in a formatted output')
 get_system_info() {
-    OS="$(checkOS) $(uname -a)"
-    HOST=$(hostname)
-    KERNEL=$(uname -r)
+    OS="$(checkOS) - $(uname -a)"
     UPTIME=$(uptime)
     SHELL_INFO=$($SHELL --version | head -n 1)
+    LOCAL_IP=$(ipswifi)
+    PUBLIC_IP=$(ippub)
+    USERS=$(whoami)
 
     # Resolution
     if command -v xrandr &> /dev/null; then
@@ -865,11 +866,34 @@ get_system_info() {
 
     # CPU
     if command -v lscpu &> /dev/null; then
-        CPU=$(lscpu | grep "Model name:" | sed 's/Model name:\s*//')
+        NUM_CPUS=$(lscpu | awk '/^CPU\(s\):/ {print $2}')
+        CPU_MAX_MHZ=$(lscpu | awk '/^CPU max MHz:/ {print $4}')
+        CPU_MHZ=$(lscpu | awk '/^CPU MHz:/ {print $3}')
+        if [ -z "$CPU_MAX_MHZ" ]; then
+            CPU_SPEED_MHZ="$CPU_MHZ"
+        else
+            CPU_SPEED_MHZ="$CPU_MAX_MHZ"
+        fi
+        CPU_SPEED_GHZ=$(awk -v freq="$CPU_SPEED_MHZ" 'BEGIN {printf "%.2f", freq/1000}')
+        CPU="(${NUM_CPUS:-UNKNOWN}) @ ${CPU_SPEED_GHZ:-UNKNOWN}GHz"
     elif [ -f /proc/cpuinfo ]; then
-        CPU=$(grep "model name" /proc/cpuinfo | head -1 | cut -d: -f2 | sed 's/^ //')
+        NUM_CPUS=$(grep -c ^processor /proc/cpuinfo)
+        CPU_MHZ=$(grep "cpu MHz" /proc/cpuinfo | head -1 | awk '{print $4}')
+        CPU_SPEED_GHZ=$(awk -v freq="$CPU_MHZ" 'BEGIN {printf "%.2f", freq/1000}')
+        CPU="(${NUM_CPUS:-UNKNOWN}) @ ${CPU_SPEED_GHZ:-UNKNOWN}GHz"
     elif [[ "$OSTYPE" == "darwin"* ]]; then
-        CPU=$(sysctl -n machdep.cpu.brand_string)
+        NUM_CPUS=$(sysctl -n hw.logicalcpu)
+        CHIP_NAME=$(system_profiler SPHardwareDataType | awk -F": " '/Chip|Processor Name/ {print $2; exit}')
+        if [[ "$CHIP_NAME" == "Apple M"* ]]; then
+            # Apple Silicon
+            TOTAL_CORES=$(system_profiler SPHardwareDataType | awk -F": " '/Total Number of Cores/ {print $2}')
+            CPU="(${TOTAL_CORES:-UNKNOWN}) $CHIP_NAME"
+        else
+            # Intel
+            CPU_SPEED_STR=$(system_profiler SPHardwareDataType | awk -F": " '/Processor Speed/ {print $2}')
+            CPU_SPEED_GHZ=$(echo "$CPU_SPEED_STR" | sed 's/ GHz//')
+            CPU="(${NUM_CPUS:-UNKNOWN}) $CHIP_NAME @ ${CPU_SPEED_GHZ:-UNKNOWN}GHz"
+        fi
     fi
 
     # GPU
@@ -894,11 +918,6 @@ get_system_info() {
         MEMORY="${MEM_USED_MB}MiB / ${MEM_TOTAL_MB%.*}MiB"
     fi
 
-    # Disk
-    if command -v df &> /dev/null; then
-        DISK=$(df -h $_disk_to_show | awk 'NR==2 {print $3 " used of " $2}')
-    fi
-
     # Battery
     if [[ "$OSTYPE" == "darwin"* ]]; then
         BATTERY=$(pmset -g batt | grep -Eo "\d+%.*;" | sed 's/;//')
@@ -906,29 +925,29 @@ get_system_info() {
         BATTERY=$(acpi -b | awk -F', ' '{print $2 " " $3}')
     fi
 
-    LOCAL_IP=$(ipswifi)
-    PUBLIC_IP=$(ippub)
-    USERS=$(whoami)
+    # Disk
+    if command -v df &> /dev/null; then
+        DISK=$(df -h $_disk_to_show | awk 'NR==2 {print $3 " used of " $2}')
+    fi
 
+    # Locale
     if command -v locale &> /dev/null; then
         LOCALE=$(locale | grep LANG= | cut -d= -f2)
     fi
 
-    echo "OS:         ${OS:-UNKNOWN}"
-    echo "Host:       ${HOST:-UNKNOWN}"
-    echo "Kernel:     ${KERNEL:-UNKNOWN}"
-    echo "Uptime:     ${UPTIME:-UNKNOWN}"
-    echo "Shell:      ${SHELL_INFO:-UNKNOWN}"
-    echo "Resolution: ${RESOLUTION:-UNKNOWN}"
-    echo "CPU:        ${CPU:-UNKNOWN}"
-    echo "GPU:        ${GPU:-UNKNOWN}"
-    echo "Memory:     ${MEMORY:-UNKNOWN}"
-    echo "Disk:       ${DISK:-UNKNOWN} (df -H)"
-    echo "Battery:    ${BATTERY:-UNKNOWN}"
-    echo "Local IP:   ${LOCAL_IP:-UNKNOWN}"
-    echo "Public IP:  ${PUBLIC_IP:-UNKNOWN}"
-    echo "Users:      ${USERS:-UNKNOWN}"
-    echo "Locale:     ${LOCALE:-UNKNOWN}"
+    echo "Shell:        ${SHELL_INFO:-UNKNOWN}"
+    echo "CPU:          ${CPU:-UNKNOWN}"
+    echo "GPU:          ${GPU:-UNKNOWN}"
+    echo "Resolution:   ${RESOLUTION:-UNKNOWN}"
+    echo "Memory:       ${MEMORY:-UNKNOWN}"
+    echo "Disk (df -H): ${DISK:-UNKNOWN} ($_disk_to_show)"
+    echo "Battery:      ${BATTERY:-UNKNOWN}"
+    echo "Users:        ${USERS:-UNKNOWN}"
+    echo "Uptime:       ${UPTIME:-UNKNOWN}"
+    echo "Locale:       ${LOCALE:-UNKNOWN}"
+    echo "Local IP:     ${LOCAL_IP:-UNKNOWN}"
+    echo "Public IP:    ${PUBLIC_IP:-UNKNOWN}"
+    echo "OS:           ${OS:-UNKNOWN}"
 }
 
 
@@ -1239,29 +1258,6 @@ More instructions here:  -> https://www.kali.org/docs/nethunter/nethunter-rootle
 "
     }
 
-    _DESCRIPTIONS+=('docker_network: Make Termux network available for all your containers and allow communication between them')
-    docker_network() {
-        #it will add your getway ip to your iptable rules in android
-        sudo ip route add default via $(ipgatewifi) dev wlan0
-        sudo ip rule add from all lookup main pref 30000
-        sudo ip rule add pref 1 from all lookup main
-        sudo ip rule add pref 2 from all lookup default
-    }
-
-    _DESCRIPTIONS+=('docker_daemon_start: Make Termux storage writable and start Docker daemon')
-    docker_daemon_start() {
-        sudo mount -o remount,rw /
-        
-        # It will make cgroup mountable as existing process in dockerd can not mount properly
-        sudo mount -t tmpfs -o mode=755 tmpfs /sys/fs/cgroup
-        sudo mkdir -p /sys/fs/cgroup/devices
-        sudo mount -t cgroup -o devices cgroup /sys/fs/cgroup/devices
-
-        mkdir -p /var/run/
-        sudo mount --bind /data/docker/run/ /var/run/  # It will mount run folder location of docker to official location
-        sudo dockerd # --iptables=false  # start docker - about iptables command not required as we have now network access
-    }
-
     _DESCRIPTIONS+=('welcome_msg: Display welcome message')
     welcome_msg() {
         echo ""
@@ -1282,8 +1278,11 @@ More instructions here:  -> https://www.kali.org/docs/nethunter/nethunter-rootle
 # Update and install openssh and set password with:
 pkg update && pkg install openssh && ssh-keygen -A && whoami && passwd
 
+# To login using ssh client:
+ssh $(whoami)@$(ipswifi) -p 8022
+
 # To copy a file into termux:
-scp -P 8022 bashrc.sh user@192.168.xxx.xxx:/data/data/com.termux/files/home/
+scp -P 8022 bashrc.sh $(whoami)@$(ipswifi):/data/data/com.termux/files/home/
 termux-setup-storage
 scp -P 8022 <file_name> user@<ip>:/sdcard/Download/
 "
@@ -2002,8 +2001,6 @@ print_welcome
 # $('#dhcp_secondary_dns').show();
 # or create a bookmark with this url:
 # javascript:$('#input_dhcp_subnet_mask').show();$('#dhcp_dns_statistic').show();$('#dhcp_primary_dns').show();$('#dhcp_secondary_dns').show();
-
-
 
 # No GUI on launch, fresh install
 # sudo mount -o remount,rw /dev/YOUR_PARTITION /
