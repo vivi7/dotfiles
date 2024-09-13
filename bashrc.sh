@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-13 rev8"
+echo "LastUpdate: 2024-09-13 rev9"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
-_bashrc_url="https://raw.githubusercontent.com/vivi7/dotfiles/master/bashrc.sh \n"
-echo "Source $_bashrc_url"
+_bashrc_url="https://raw.githubusercontent.com/vivi7/dotfiles/master/bashrc.sh"
+echo "Source $_bashrc_url \n"
 
 _welcome_message="run 'funchelp' to List all sourced custom functions"
 
