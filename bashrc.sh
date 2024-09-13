@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-13 rev4"
+echo "LastUpdate: 2024-09-13 rev7"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
-_bashrc_url="https://raw.githubusercontent.com/vivi7/dotfiles/master/bashrc.sh"
+echo "Script: ${0##*/}"
+_bashrc_url="https://raw.githubusercontent.com/vivi7/dotfiles/master/bashrc.sh \n"
 echo "Source $_bashrc_url"
+
+_welcome_message="run 'funchelp' to List all sourced custom functions"
 
 export red=$'\e[1;31m'
 export green=$'\e[1;32m'
@@ -13,8 +16,6 @@ export purple=$'\e[1;33m'
 export cyan=$'\e[1;35m'
 export white=$'\e[1;37m'
 export endc=$'\e[0m'
-
-# echo "Script: ${0##*/}"
 
 _DESCRIPTIONS=()
 
@@ -62,8 +63,6 @@ isSynology() { [[ $(checkOS) == "synology" ]] && echo 1 || echo 0; }
 isKali() { [[ $(checkOS) == "kali" ]] && echo 1 || echo 0; }
 isParrot() { [[ $(checkOS) == "parrot" ]] && echo 1 || echo 0; }
 isPop() { [[ $(checkOS) == "pop-os" ]] && echo 1 || echo 0; }
-
-_welcome_message="run 'bashrc_tags' (| grep MacOS/Termux/iSH/qnap/synology/kali/parrot) function to know all possible new commands"
 
 export BLOCKSIZE=5k # Set default blocksize for ls, df,
 
@@ -169,7 +168,7 @@ _DESCRIPTIONS+=('myps: List processes owned by my user')
 myps() { ps "$@" -u $USER -o pid,%cpu,%mem,start,time,bsdtime,command; }
 
 _DESCRIPTIONS+=('ippub: Public IP Address')
-ippub() { curl ifconfig.co; }
+ippub() { curl ifconfig.co 2>/dev/null; }
 
 _DESCRIPTIONS+=('ipswifi: Wlan IP Address')
 ipswifi() { ifconfig | grep 'inet ' | grep -v 127.0.0.1 | awk '{print $2}'; }  # ifconfig | awk '/inet / && !/127.0.0.1/ {print $2}'
@@ -878,6 +877,8 @@ get_system_info() {
         UPTIME=$(uptime -p | sed 's/up //')
     fi
 
+    SHELL_INFO=$($SHELL --version)
+
     # Resolution
     if command -v xrandr &> /dev/null; then
         RESOLUTION=$(xrandr | grep '*' | awk '{print $1}' | paste -sd ', ' -)
@@ -901,7 +902,6 @@ get_system_info() {
         GPU=$(system_profiler SPDisplaysDataType | grep 'Chipset Model:' | awk -F: '{print $2}' | sed 's/^ //')
     fi
 
-    echo OK
     # Memory
     if command -v free &> /dev/null; then
         MEM_USED=$(free -m | awk '/Mem:/ {print $3}')
@@ -939,26 +939,27 @@ get_system_info() {
     LOCAL_IP=$(ipswifi)
     PUBLIC_IP=$(ippub)
     USERS=$(whoami)
+
     if command -v locale &> /dev/null; then
         LOCALE=$(locale | grep LANG= | cut -d= -f2)
     fi
 
-    echo "OS: ${OS:-UNKNOWN}"
-    echo "Host: ${HOST:-UNKNOWN}"
-    echo "Kernel: ${KERNEL:-UNKNOWN}"
-    echo "Uptime: ${UPTIME:-UNKNOWN}"
-    echo "Shell: ${SHELL:-UNKNOWN}"
-    echo "Resolution: ${RESOLUTION:-UNKNOWN}"
-    echo "CPU: ${CPU:-UNKNOWN}"
-    echo "GPU: ${GPU:-UNKNOWN}"
-    echo "Memory: ${MEMORY:-UNKNOWN}"
-    echo "CPU Usage: ${CPU_USAGE:-UNKNOWN}%"
-    echo "Disk: ${DISK:-UNKNOWN}"
-    echo "Battery: ${BATTERY:-UNKNOWN}"
-    echo "Local IP: ${LOCAL_IP:-UNKNOWN}"
-    echo "Public IP: ${PUBLIC_IP:-UNKNOWN}"
-    echo "Users: ${USERS:-UNKNOWN}"
-    echo "Locale: ${LOCALE:-UNKNOWN}"
+    echo "OS:               ${OS:-UNKNOWN}"
+    echo "Host:             ${HOST:-UNKNOWN}"
+    echo "Kernel:           ${KERNEL:-UNKNOWN}"
+    echo "Uptime:           ${UPTIME:-UNKNOWN}"
+    echo "Shell:            ${SHELL_INFO:-UNKNOWN}"
+    echo "Resolution:       ${RESOLUTION:-UNKNOWN}"
+    echo "CPU:              ${CPU:-UNKNOWN}"
+    echo "GPU:              ${GPU:-UNKNOWN}"
+    echo "Memory:           ${MEMORY:-UNKNOWN}"
+    echo "CPU Usage:        ${CPU_USAGE:-UNKNOWN}%"
+    echo "Disk:             ${DISK:-UNKNOWN}"
+    echo "Battery:          ${BATTERY:-UNKNOWN}"
+    echo "Local IP:         ${LOCAL_IP:-UNKNOWN}"
+    echo "Public IP:        ${PUBLIC_IP:-UNKNOWN}"
+    echo "Users:            ${USERS:-UNKNOWN}"
+    echo "Locale:           ${LOCALE:-UNKNOWN}"
 }
 
 
@@ -1150,8 +1151,8 @@ _EOF_
         install_zsh
     }
 
-    _DESCRIPTIONS+=('startx_native: Start native X session in Termux')
-    startx_native() {
+    _DESCRIPTIONS+=('startx_ntv: Start native X session in Termux, if $1 is "nh" start nethunter X')
+    startx_ntv() {
         # Kill open X11 processes
         kill -9 $(pgrep -f "termux.x11") 2>/dev/null
         
@@ -1167,13 +1168,12 @@ _EOF_
         am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity > /dev/null 2>&1
         sleep 1
 
-        # Set audio server
-        export PULSE_SERVER=127.0.0.1
-
-        # Run XFCE4 Desktop
-        env DISPLAY=:0 dbus-launch --exit-with-session xfce4-session & > /dev/null 2>&1
-
-        # nethunter -r  'export PULSE_SERVER=127.0.0.1 && export XDG_RUNTIME_DIR=${TMPDIR} && su - kali -c "env DISPLAY=:0 startxfce4"'
+        # Set audio server && Run XFCE4 Desktop
+        if [[ "$1" == "nh" ]]; then
+            nethunter -r  'export PULSE_SERVER=127.0.0.1 && export XDG_RUNTIME_DIR=${TMPDIR} && su - kali -c "env DISPLAY=:0 startxfce4"'
+        else 
+            export PULSE_SERVER=127.0.0.1 && env DISPLAY=:0 dbus-launch --exit-with-session xfce4-session & > /dev/null 2>&1
+        fi
 
         exit 0
     }
