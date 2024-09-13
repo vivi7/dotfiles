@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-13 rev7"
+echo "LastUpdate: 2024-09-13 rev8"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
@@ -68,7 +68,7 @@ export BLOCKSIZE=5k # Set default blocksize for ls, df,
 
 _bashrc_file_path=~/.bashrc
 _neofetch_config_file_path=~/.config/neofetch/config.conf
-_neofetch_arg_disk_show='/'
+_disk_to_show='/'
 _neofetch_arg_backend=on
 
 docker_volume_prefix="$HOME"
@@ -850,34 +850,11 @@ dockervscode() {
 
 _DESCRIPTIONS+=('get_system_info: Display detailed system information in a formatted output')
 get_system_info() {
-    # OS
-    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
-        if command -v lsb_release &> /dev/null; then
-            OS=$(lsb_release -d | awk -F"\t" '{print $2}')
-        elif [ -f /etc/os-release ]; then
-            OS=$(grep PRETTY_NAME /etc/os-release | cut -d= -f2 | tr -d '"')
-        else
-            OS=$(uname -o)
-        fi
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        OS="$(sw_vers -productName) $(sw_vers -productVersion) $(sw_vers -buildVersion) $(uname -m)"
-    elif [[ "$OSTYPE" == "android"* ]]; then
-        OS="Android"
-    else
-        OS=$(uname -s)
-    fi
-
+    OS="$(checkOS) $(uname -a)"
     HOST=$(hostname)
     KERNEL=$(uname -r)
-
-    # Uptime
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        UPTIME=$(uptime | awk -F'( |,|:)+' '{if ($6=="mins") {print $5" mins"} else if($5=="hrs") {print $4" hrs, "$6" mins"} else {print $4" days, "$5" hrs, "$6" mins"}}')
-    else
-        UPTIME=$(uptime -p | sed 's/up //')
-    fi
-
-    SHELL_INFO=$($SHELL --version)
+    UPTIME=$(uptime)
+    SHELL_INFO=$($SHELL --version | head -n 1)
 
     # Resolution
     if command -v xrandr &> /dev/null; then
@@ -917,16 +894,9 @@ get_system_info() {
         MEMORY="${MEM_USED_MB}MiB / ${MEM_TOTAL_MB%.*}MiB"
     fi
 
-    # CPU Usage
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        CPU_USAGE=$(ps -A -o %cpu | awk '{s+=$1} END {print s}')
-    elif command -v top &> /dev/null; then
-        CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2 + $4}')
-    fi
-
     # Disk
     if command -v df &> /dev/null; then
-        DISK=$(df -h / | awk 'NR==2 {print $3 " used of " $2}')
+        DISK=$(df -h $_disk_to_show | awk 'NR==2 {print $3 " used of " $2}')
     fi
 
     # Battery
@@ -944,22 +914,21 @@ get_system_info() {
         LOCALE=$(locale | grep LANG= | cut -d= -f2)
     fi
 
-    echo "OS:               ${OS:-UNKNOWN}"
-    echo "Host:             ${HOST:-UNKNOWN}"
-    echo "Kernel:           ${KERNEL:-UNKNOWN}"
-    echo "Uptime:           ${UPTIME:-UNKNOWN}"
-    echo "Shell:            ${SHELL_INFO:-UNKNOWN}"
-    echo "Resolution:       ${RESOLUTION:-UNKNOWN}"
-    echo "CPU:              ${CPU:-UNKNOWN}"
-    echo "GPU:              ${GPU:-UNKNOWN}"
-    echo "Memory:           ${MEMORY:-UNKNOWN}"
-    echo "CPU Usage:        ${CPU_USAGE:-UNKNOWN}%"
-    echo "Disk:             ${DISK:-UNKNOWN}"
-    echo "Battery:          ${BATTERY:-UNKNOWN}"
-    echo "Local IP:         ${LOCAL_IP:-UNKNOWN}"
-    echo "Public IP:        ${PUBLIC_IP:-UNKNOWN}"
-    echo "Users:            ${USERS:-UNKNOWN}"
-    echo "Locale:           ${LOCALE:-UNKNOWN}"
+    echo "OS:         ${OS:-UNKNOWN}"
+    echo "Host:       ${HOST:-UNKNOWN}"
+    echo "Kernel:     ${KERNEL:-UNKNOWN}"
+    echo "Uptime:     ${UPTIME:-UNKNOWN}"
+    echo "Shell:      ${SHELL_INFO:-UNKNOWN}"
+    echo "Resolution: ${RESOLUTION:-UNKNOWN}"
+    echo "CPU:        ${CPU:-UNKNOWN}"
+    echo "GPU:        ${GPU:-UNKNOWN}"
+    echo "Memory:     ${MEMORY:-UNKNOWN}"
+    echo "Disk:       ${DISK:-UNKNOWN} (df -H)"
+    echo "Battery:    ${BATTERY:-UNKNOWN}"
+    echo "Local IP:   ${LOCAL_IP:-UNKNOWN}"
+    echo "Public IP:  ${PUBLIC_IP:-UNKNOWN}"
+    echo "Users:      ${USERS:-UNKNOWN}"
+    echo "Locale:     ${LOCALE:-UNKNOWN}"
 }
 
 
@@ -968,8 +937,9 @@ print_welcome() {
     echo '$HOME: '${HOME}
     get_system_info
     [[ -x $(command -v neofetch) ]] && {
+        echo ""
         echo "${_neofetch_print_info}" >$_neofetch_config_file_path
-        neofetch --disk_show $_neofetch_arg_disk_show --backend $_neofetch_arg_backend
+        neofetch --disk_show $_disk_to_show --backend $_neofetch_arg_backend
     }
     echo $_welcome_message
     welcome_msg
@@ -980,7 +950,7 @@ if [[ $(isTermux) == 1 ]]; then
 
     _bashrc_file_path="$PREFIX/etc/bash.bashrc"
     _neofetch_config_file_path="/data/data/com.termux/files/home/.config/neofetch/config.conf"
-    _neofetch_arg_disk_show="/sdcard/"
+    _disk_to_show="/sdcard/"
     _neofetch_arg_backend=off
 
     _motd="$PREFIX/etc/motd"
@@ -1323,6 +1293,7 @@ fi
 if [[ $(isMac) == 1 ]]; then
 
     _bashrc_file_path=~/.bash_profile
+    _disk_to_show='/'
     [ -x $(command -v airport) ] || { sudo ln -s /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport /usr/sbin/airport; }
     
     alias kcamera='sudo killall VDCAssistant'                                                                                                                                                       #: kcamera: restart MacOS camera service
