@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-13 rev11"
+echo "LastUpdate: 2024-09-14 rev2"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
@@ -21,8 +21,9 @@ _DESCRIPTIONS=()
 
 _DESCRIPTIONS+=('funchelp: List all sourced custom functions.')
 funchelp() {
+    IFS=$'\n' sorted=($(sort <<<"${_DESCRIPTIONS[*]}")); unset IFS
     local index=1
-    for description in "${_DESCRIPTIONS[@]}"; do
+    for description in "${sorted[@]}"; do
         printf "%d. %s\n" "$index" "$description"
         ((index++))
     done
@@ -67,9 +68,7 @@ isPop() { [[ $(checkOS) == "pop-os" ]] && echo 1 || echo 0; }
 export BLOCKSIZE=5k # Set default blocksize for ls, df,
 
 _bashrc_file_path=~/.bashrc
-_neofetch_config_file_path=~/.config/neofetch/config.conf
 _disk_to_show='/'
-_neofetch_arg_backend=on
 
 docker_volume_prefix="$HOME"
 docker_volume_config_prefix="$docker_volume_prefix"
@@ -857,13 +856,6 @@ get_system_info() {
     PUBLIC_IP=$(ippub)
     USERS=$(whoami)
 
-    # Resolution
-    if command -v xrandr &> /dev/null; then
-        RESOLUTION=$(xrandr | grep '*' | awk '{print $1}' | paste -sd ', ' -)
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        RESOLUTION=$(system_profiler SPDisplaysDataType | grep Resolution | awk -F: '{print $2}' | tr -d ' ' | paste -sd ', ' -)
-    fi
-
     # CPU
     if command -v lscpu &> /dev/null; then
         NUM_CPUS=$(lscpu | awk '/^CPU\(s\):/ {print $2}')
@@ -894,13 +886,6 @@ get_system_info() {
             CPU_SPEED_GHZ=$(echo "$CPU_SPEED_STR" | sed 's/ GHz//')
             CPU="(${NUM_CPUS:-UNKNOWN}) $CHIP_NAME @ ${CPU_SPEED_GHZ:-UNKNOWN}GHz"
         fi
-    fi
-
-    # GPU
-    if command -v lspci &> /dev/null; then
-        GPU=$(lspci | grep -i 'vga\|3d\|2d' | cut -d: -f3 | sed 's/^ //')
-    elif [[ "$OSTYPE" == "darwin"* ]]; then
-        GPU=$(system_profiler SPDisplaysDataType | grep 'Chipset Model:' | awk -F: '{print $2}' | sed 's/^ //')
     fi
 
     # Memory
@@ -935,31 +920,25 @@ get_system_info() {
         LOCALE=$(locale | grep LANG= | cut -d= -f2)
     fi
 
-    echo "Shell:        ${SHELL_INFO:-UNKNOWN}"
-    echo "CPU:          ${CPU:-UNKNOWN}"
-    echo "GPU:          ${GPU:-UNKNOWN}"
-    echo "Resolution:   ${RESOLUTION:-UNKNOWN}"
-    echo "Memory:       ${MEMORY:-UNKNOWN}"
-    echo "Disk (df -H): ${DISK:-UNKNOWN} ($_disk_to_show)"
-    echo "Battery:      ${BATTERY:-UNKNOWN}"
-    echo "Users:        ${USERS:-UNKNOWN}"
-    echo "Uptime:       ${UPTIME:-UNKNOWN}"
-    echo "Locale:       ${LOCALE:-UNKNOWN}"
-    echo "Local IP:     ${LOCAL_IP:-UNKNOWN}"
-    echo "Public IP:    ${PUBLIC_IP:-UNKNOWN}"
-    echo "OS:           ${OS:-UNKNOWN}"
+    echo -e "${yellow}Shell:       ${endc} ${SHELL_INFO:-UNKNOWN}"
+    echo -e "${yellow}CPU:         ${endc} ${CPU:-UNKNOWN}"
+    echo -e "${yellow}Memory:      ${endc} ${MEMORY:-UNKNOWN}"
+    echo -e "${yellow}Disk (df -H):${endc} ${DISK:-UNKNOWN} ($_disk_to_show)"
+    echo -e "${yellow}Battery:     ${endc} ${BATTERY:-UNKNOWN}"
+    echo -e "${yellow}Users:       ${endc} ${USERS:-UNKNOWN}"
+    echo -e "${yellow}Uptime:      ${endc} ${UPTIME:-UNKNOWN}"
+    echo -e "${yellow}Locale:      ${endc} ${LOCALE:-UNKNOWN}"
+    echo -e "${yellow}Local IP:    ${endc} ${LOCAL_IP:-UNKNOWN}"
+    echo -e "${yellow}Public IP:   ${endc} ${PUBLIC_IP:-UNKNOWN}"
+    echo -e "${yellow}OS:          ${endc} ${OS:-UNKNOWN}"
 }
 
 
 _DESCRIPTIONS+=('print_welcome: Print welcome message')
 print_welcome() {
-    echo '$HOME: '${HOME}
+    echo -e ${yellow}'$HOME:'${endc} "${HOME}"
+    echo "\n"
     get_system_info
-    [[ -x $(command -v neofetch) ]] && {
-        echo ""
-        echo "${_neofetch_print_info}" >$_neofetch_config_file_path
-        neofetch --disk_show $_disk_to_show --backend $_neofetch_arg_backend
-    }
     echo $_welcome_message
     welcome_msg
 }
@@ -968,9 +947,7 @@ print_welcome() {
 if [[ $(isTermux) == 1 ]]; then
 
     _bashrc_file_path="$PREFIX/etc/bash.bashrc"
-    _neofetch_config_file_path="/data/data/com.termux/files/home/.config/neofetch/config.conf"
     _disk_to_show="/sdcard/"
-    _neofetch_arg_backend=off
 
     _motd="$PREFIX/etc/motd"
     [ -e $_motd ] && rm $_motd
@@ -1126,7 +1103,7 @@ _EOF_
         pkg update -y
         pkg_must=(
             termux-services ncurses-utils coreutils tsu
-            neofetch htop-legacy openssl-tool openssh gnupg
+            htop-legacy openssl-tool openssh gnupg
             tar git wget curl jq vim tree tmux dnsutils nmap
             nodejs-lts zsh
             ffmpeg imagemagick
@@ -1425,7 +1402,7 @@ EOT
         echom "Installing brew formulas..." "*" "${yellow}"
         brew_formulas=( \
             jq vim tree gnu-sed coreutils moreutils \
-            git-quick-stats neofetch \
+            git-quick-stats \
             ffmpeg imagemagick youtube-dl kalker \
             findutils java android-platform-tools \
             qlcolorcode qlstephen qlmarkdown quicklook-json qlimagesize suspicious-package apparency quicklookase qlvideo \
@@ -1678,7 +1655,7 @@ if [[ $(isParrot) == 1 ]]; then
 
         apt_packages=( \
             jq vim tree gnu-sed coreutils moreutils \
-            git-quick-stats neofetch \
+            git-quick-stats \
             ffmpeg imagemagick youtube-dl \
             findutils java android-platform-tools \
             xclip caffeine \
@@ -1934,42 +1911,6 @@ function zsh_options() {
     done
 }
 
-EOF
-)"
-
-_neofetch_print_info="$(
-    cat <<-EOF
-print_info() {
-    info title
-    info underline
-    info "OS" distro
-    info "Host" model
-    info "Kernel" kernel
-    info "Uptime" uptime
-    info "Packages" packages
-    info "Shell" shell
-    info "Resolution" resolution
-    info "DE" de
-    info "WM" wm
-    info "WM Theme" wm_theme
-    info "Theme" theme
-    info "Icons" icons
-    info "Terminal" term
-    info "Terminal Font" term_font
-    info "CPU" cpu
-    info "GPU" gpu
-    info "Memory" memory
-    info "GPU Driver" gpu_driver  # Linux/macOS only
-    info "CPU Usage" cpu_usage
-    info "Disk" disk
-    info "Battery" battery
-    info "Font" font
-    #info "Song" song
-    info "Local IP" local_ip
-    info "Public IP" public_ip
-    info "Users" users
-    info "Locale" locale  # This only works on glibc systems.
-}
 EOF
 )"
 
