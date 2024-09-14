@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-14 rev5"
+echo "LastUpdate: 2024-09-14 rev6"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
@@ -1292,16 +1292,10 @@ if [[ $(isMac) == 1 ]]; then
     alias docs='cd ~/Documents'  #: docs: 'cd /sdcard/Documents' in MacOS Env
     alias downs='cd ~/Downloads' #: downs: 'cd /sdcard/Downloads' in MacOS Env
 
-    _DESCRIPTIONS+=('ipgatewifi: MacOS Wlan IP Address')
+    # Replace the declared one
     ipgatewifi() { netstat -nr | grep UGScg | awk '{print $2;}'; }
-
-    _DESCRIPTIONS+=('ipparent: MacOS Wlan IP parent')
     ipparent() { netstat -nr | grep UGScg | awk '{print $4;}'; }
-
-    _DESCRIPTIONS+=('_copy: copy to MacOS clipboard')
     _copy() { cat | pbcopy; }
-
-    _DESCRIPTIONS+=('_paste: paste from MacOS clipboard')
     _paste() { pbpaste; }
 
     _DESCRIPTIONS+=('trash: Moves a file to the MacOS trash')
