@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-14 rev6"
+echo "LastUpdate: 2024-09-14 rev9"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
@@ -73,10 +73,12 @@ _disk_to_show='/'
 docker_volume_prefix="$HOME"
 docker_volume_config_prefix="$docker_volume_prefix"
 
-# alias chown='chown --preserve-root'                                                                                          #: chown: implementation: Parenting changing perms on
-# alias chmod='chmod --preserve-root'                                                                                          #: chmod: implementation: Parenting changing perms on
-# alias chgrp='chgrp --preserve-root'                                                                                          #: chgrp: implementation: Parenting changing perms on
-# alias ls='ls -GFh'                                                                                                           #: ls: implementation
+alias cd..='cd ../'                                                                                                          #: cd: Go back 1 directory level (for fast typers)
+alias ..='cd ../'                                                                                                            #: ..: Go back 1 directory level
+alias ...='cd ../../'                                                                                                        #: ..: Go back 2 directory levels
+alias h='cd $HOME'                                                                                                           #: h: Go Home
+alias q='exit'                                                                                                               #: q: exit
+alias xxx='chmod +x'                                                                                                         #: xx: chmod +x
 alias cp='cp -iv'                                                                                                            #: cp: implementation
 alias mv='mv -iv'                                                                                                            #: mv: implementation
 alias mkdir='mkdir -pv'                                                                                                      #: mkdir: implementation
@@ -105,19 +107,6 @@ alias psmem10='ps auxf | sort -nr -k 4 | head -10'                              
 alias pscpu='ps auxf | sort -nr -k 3'                                                                                        #: pscpu: get top process eating cpu
 alias pscpu10='ps auxf | sort -nr -k 3 | head -10'                                                                           #: pscpu10: get top process eating cpu for first 10
 alias ports='sudo lsof -PiTCP -sTCP:LISTEN'                                                                                  #: ports: show ports in listen status
-
-alias cd..='cd ../'              #: cd: Go back 1 directory level (for fast typers)
-alias ..='cd ../'                #: ..: Go back 1 directory level
-alias ...='cd ../../'            #: ..: Go back 2 directory levels
-alias .3='cd ../../../'          #: .3: Go back 3 directory levels
-alias .4='cd ../../../../'       #: .4: Go back 4 directory levels
-alias .5='cd ../../../../../'    #: .5: Go back 5 directory levels
-alias .6='cd ../../../../../../' #: .6: Go back 6 directory levels
-alias ~="cd ~"                   #: ~: Go Home
-alias cdh="cd ~"                 #: cdh: Go Home
-alias h='cd $HOME'               #: h: Go Home
-alias :q='exit'                  #: :q: exit
-alias xxx='chmod +x'             #: xx: chmod +x
 
 _DESCRIPTIONS+=('setps1: Set custom PS1.')
 setps1() {
@@ -208,11 +197,13 @@ zipf() { zip -r "$1".zip "$1"; }
 _DESCRIPTIONS+=('gitbranch: print git branch')
 gitbranch () { git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/@\1 /' ; }
 
-_DESCRIPTIONS+=('addpath: add safety path to PATH var')
+_DESCRIPTIONS+=('addpath: add safety path to PATH var, use -s as $2 to no logs')
 addpath() {
-    if [[ ! -d "$1" ]]; then echom "$1 not exist" "!" "${red}"; 
-    elif [[ ":$PATH:" == *":$path_to_add:"* ]]; then echom "$1 already added" "-" "${yellow}"; 
-    else PATH="${PATH:+"$PATH:"}$1" && echom "$PATH" "*" "${green}"; 
+    path_to_add="$1"
+    silent="$2"
+    if [[ ! -d "$path_to_add" ]]; then [[ "$silent" != "-s" ]] && { echom "$path_to_add not exist" "!" "${red}"; }; 
+    elif [[ ":$PATH:" == *":$path_to_add:"* ]]; then [[ "$silent" != "-s" ]] && { echom "$path_to_add already added" "-" "${yellow}"; }; 
+    else PATH="${PATH:+"$PATH:"}$path_to_add" && [[ "$silent" != "-s" ]] && { echom "$PATH" "*" "${green}"; };
     fi
 }
 
@@ -1092,32 +1083,6 @@ _EOF_
         done
     }
 
-    _DESCRIPTIONS+=('install_must: Install must have Termux packages')
-    install_must() {
-        echom "Installing must have repo packages..." "*" "${yellow}"
-        pkg update -y
-        pkg upgrade -y
-        pkg_must_repo=(
-            x11-repo root-repo science-repo termux-api
-        )
-        pkg install -y "${pkg_must_repo[@]}"
-        pkg update -y
-        pkg_must=(
-            termux-services ncurses-utils coreutils tsu
-            htop-legacy openssl-tool openssh gnupg
-            tar git wget curl jq vim tree tmux dnsutils nmap
-            nodejs-lts zsh
-            ffmpeg imagemagick
-            docker golang make cmake ndk-multilib iproute2
-        )
-        echom "Installing must have packages..." "*" "${yellow}"
-        pkg install -y "${pkg_must[@]}"
-        # cat sudo > $PREFIX/bin/sudo && chmod 700 $PREFIX/bin/sudo
-        echom "Must have packages installed successfully" "*" "${green}"
-        config_git
-        install_zsh
-    }
-
     _DESCRIPTIONS+=('stx: Start native X session in Termux, if $1 is "nh" start nethunter X')
     stx() {
         # Kill open X11 processes
@@ -1145,47 +1110,35 @@ _EOF_
         exit 0
     }
 
-    _DESCRIPTIONS+=('install_termux_desktop: Install desktop Termux packages')
-    install_termux_desktop() {
-        pkg_desktop=(
-            x11-repo termux-x11-nightly
-            pulseaudio
-            xfce4 tur-repo
-            chromium
-            code-oss
-        )
-        echo "Related pkgs are:" "${pkg_desktop[@]}"
-        echo "Do you want termux-desktop? (install/uninstall) : "
-        read INSTALL_REPLY
-        if [[ "$INSTALL_REPLY" == "install" ]]; then
-            pkg install -y "${pkg_desktop[@]}"
-            [[ ! -d "$HOME/Desktop" ]] && {
-                mkdir $HOME/Desktop
-                echom "Desktop folder created." "*" "${green}"
+    _DESCRIPTIONS+=('set_desktop_env: Set desktop Termux env')
+    set_desktop_env() {
+        [[ ! -d "$HOME/Desktop" ]] && {
+            mkdir $HOME/Desktop
+            echom "Desktop folder created." "*" "${green}"
+        }
+        echo "Do you want to copy termux-desktop data in your home? (y/n) : "
+        read CP_REPLY
+        [[ "$CP_REPLY" =~ "y" ]] && {
+            _termux_desktop_folder=$HOME/termux-desktop
+            [[ ! -d "$_termux_desktop_folder" ]] && {
+                git clone --depth=1 https://github.com/vivi7/termux-desktop.git $_termux_desktop_folder
+                echom "termux-desktop cloned." "*" "${green}"
             }
-            echo "Do you want to copy termux-desktop data in your home? (y/n) : "
-            read CP_REPLY
-            [[ "$CP_REPLY" =~ "y" ]] && {
-                _termux_desktop_folder=$HOME/termux-desktop
-                [[ ! -d "$_termux_desktop_folder" ]] && {
-                    git clone --depth=1 https://github.com/vivi7/termux-desktop.git $_termux_desktop_folder
-                    echom "termux-desktop cloned." "*" "${green}"
-                }
-                echom "Copying desktop data..." "*" "${yellow}"
-                configs=($(ls -A $_termux_desktop_folder/files))
-                for _config in "${configs[@]}"; do
-                    echom "Copying $_config..." "*" "${cyan}"
-                    cp -rf $_termux_desktop_folder/files/$_config $HOME
-                done
+            echom "Copying desktop data..." "*" "${yellow}"
+            configs=($(ls -A $_termux_desktop_folder/files))
+            for _config in "${configs[@]}"; do
+                echom "Copying $_config..." "*" "${cyan}"
+                cp -rf $_termux_desktop_folder/files/$_config $HOME
+            done
 
-                echo "Do you want to delete termux-desktop folder with all contents? (y/n) : "
-                read RM_REPLY
-                [[ "$RM_REPLY" =~ "y" ]] && { rm -rf $_termux_desktop_folder; }
-            }
-            echo "Do you want to have custom bookmarks for thunar? (y/n) : "
-            read THUNAR_BOOKMARKS_REPLY
-            [[ "$THUNAR_BOOKMARKS_REPLY" =~ "y" ]] && {
-                cat >$HOME/.config/gtk-3.0/bookmarks <<EOF
+            echo "Do you want to delete termux-desktop folder with all contents? (y/n) : "
+            read RM_REPLY
+            [[ "$RM_REPLY" =~ "y" ]] && { rm -rf $_termux_desktop_folder; }
+        }
+        echo "Do you want to have custom bookmarks for thunar? (y/n) : "
+        read THUNAR_BOOKMARKS_REPLY
+        [[ "$THUNAR_BOOKMARKS_REPLY" =~ "y" ]] && {
+            cat >$HOME/.config/gtk-3.0/bookmarks <<EOF
 file:///data/data/com.termux/files/home/storage/shared SDcard
 file:///data/data/com.termux/files/usr User
 file:///data/data/com.termux/files/home/storage/downloads Downloads
@@ -1196,11 +1149,64 @@ file:///data/data/com.termux/files/home/storage/movies Movies
 file:///data/data/com.termux/files/home/.local/share/Trash/files Trash
 
 EOF
-            }
-            wrap_vnc configure
-            echom "Desktop Environment set successfully" "*" "${green}"
+        }
+        wrap_vnc configure
+        echom "Desktop Environment set successfully" "*" "${green}"
+    }
+
+    _DESCRIPTIONS+=('install_must: Install must have Termux packages')
+    install_must() {
+        echom "Installing must have repo packages..." "*" "${yellow}"
+        pkg update -y
+        pkg upgrade -y
+        pkg_must_repo=(
+            x11-repo root-repo science-repo termux-api
+        )
+        pkg install -y "${pkg_must_repo[@]}"
+        pkg update -y
+        # pkg_desktop=(
+        #     termux-x11-nightly
+        #     pulseaudio
+        #     proot-distro
+        #     xfce4 tur-repo
+        # )
+        # pkg_programs=(
+        #     chromium
+        #     code-oss
+        # )
+        pkg_must=(
+            termux-services ncurses-utils coreutils tsu
+            htop-legacy openssl-tool openssh gnupg
+            tar git wget curl jq vim tree tmux dnsutils nmap
+            zsh
+            ffmpeg imagemagick
+            nodejs-lts 
+            docker golang make cmake ndk-multilib iproute2
+        )
+        echom "Installing must have packages..." "*" "${yellow}"
+        pkg install -y "${pkg_must[@]}"
+        # cat sudo > $PREFIX/bin/sudo && chmod 700 $PREFIX/bin/sudo
+        echom "Must have packages installed successfully" "*" "${green}"
+        config_git
+        install_zsh
+    }
+
+    _DESCRIPTIONS+=('install_termux_desktop: Install desktop Termux packages')
+    install_termux_desktop() {
+        pkg_desktop=(
+            termux-x11-nightly
+            pulseaudio
+            proot-distro
+            xfce4 tur-repo
+        )
+        echo "Related pkgs are:" "${pkgs[@]}"
+        echo "Do you want termux-desktop? (install/uninstall) : "
+        read INSTALL_REPLY
+        if [[ "$INSTALL_REPLY" == "install" ]]; then
+            pkg install -y "${pkgs[@]}"
+            set_desktop_env
         elif [[ "$INSTALL_REPLY" == "uninstall" ]]; then
-            apt-get remove -y --purge --autoremove $package "${pkg_desktop[@]}"
+            apt-get remove -y --purge --autoremove $package "${pkgs[@]}"
             # TODO: remove desktop home data
             zip -r desktop_home.zip .config .local .mpd .ncmpcpp Music .fehbg .gitconfig .gtkrc-2.0 .vimrc .cache
             echo "Do you want to delete home/Desktop folder with all contents? (y/n) : "
@@ -1215,10 +1221,24 @@ EOF
     _DESCRIPTIONS+=('install_kali_nethunter_desktop: Install Kali NetHunter in Termux OS')
     install_kali_nethunter_desktop() {
         termux-setup-storage
-        pkg install wget
-        wget -O install-nethunter-termux https://offs.ec/2MceZWr
-        chmod +x install-nethunter-termux
-        ./install-nethunter-termux
+
+        url="https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-project/raw/master/nethunter-rootless/install-nethunter-termux"
+        local_file="nh-termux-install.sh"
+        
+        online_version=$(curl -s "$url" | sed -n '3p')
+        local_version=$(sed -n '3p' "./bin/$local_file")
+
+        echo "Locale v: $local_version, Online v: $online_version"
+        if [ "$online_version" != "$local_version" ]; then
+            temp_file="install-nethunter-termux"
+            curl -o ./bin/$temp_file $url
+            awk '{gsub("-b /proc","-b /proc -b $HOME/storage/shared:/sdcard -b $PREFIX/tmp:/tmp -b $HOME/bashrc.sh:$home/bashrc.sh"); print}' ${temp_file} > ${local_file}
+            diff ${temp_file}  ${local_file}
+            rm ${temp_file}
+        fi
+
+        chmod +x ./bin/$local_file
+        ./bin/$local_file
 
         echo -e "
 nethunter                -> start Kali NetHunter command line interface
@@ -1255,7 +1275,7 @@ More instructions here:  -> https://www.kali.org/docs/nethunter/nethunter-rootle
 
 # Update and install openssh and set password with:
 pkg update && pkg install openssh && ssh-keygen -A && whoami && passwd
-
+sshd
 # To login using ssh client:
 ssh $(whoami)@$(ipswifi) -p 8022
 
@@ -1927,6 +1947,7 @@ EOF
 )"
 
 load_envs
+addpath ./bin -s
 print_welcome
 
 #   diskutil eject /dev/disk1s3  #  remove_disk: spin down unneeded disk
