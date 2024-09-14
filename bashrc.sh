@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-14 rev2"
+echo "LastUpdate: 2024-09-14 rev4"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
@@ -930,14 +930,15 @@ get_system_info() {
     echo -e "${yellow}Locale:      ${endc} ${LOCALE:-UNKNOWN}"
     echo -e "${yellow}Local IP:    ${endc} ${LOCAL_IP:-UNKNOWN}"
     echo -e "${yellow}Public IP:   ${endc} ${PUBLIC_IP:-UNKNOWN}"
-    echo -e "${yellow}OS:          ${endc} ${OS:-UNKNOWN}"
+    echo "${OS:-UNKNOWN}"
 }
 
 
 _DESCRIPTIONS+=('print_welcome: Print welcome message')
 print_welcome() {
+    echo ""
     echo -e ${yellow}'$HOME:'${endc} "${HOME}"
-    echo "\n"
+    echo ""
     get_system_info
     echo $_welcome_message
     welcome_msg
@@ -1117,8 +1118,8 @@ _EOF_
         install_zsh
     }
 
-    _DESCRIPTIONS+=('startx_ntv: Start native X session in Termux, if $1 is "nh" start nethunter X')
-    startx_ntv() {
+    _DESCRIPTIONS+=('stx: Start native X session in Termux, if $1 is "nh" start nethunter X')
+    stx() {
         # Kill open X11 processes
         kill -9 $(pgrep -f "termux.x11") 2>/dev/null
         
