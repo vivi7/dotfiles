@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-14 rev4"
+echo "LastUpdate: 2024-09-14 rev5"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
@@ -1588,7 +1588,8 @@ if [[ $(isSynology) == 1 ]]; then
     docker_volume_prefix="/volume1"
     docker_volume_config_prefix="$docker_volume_prefix/docker"
 
-    check_docker() { #: check_docker: Check Synology docker permission instance
+    _DESCRIPTIONS+=('check_docker: Check Synology docker permission instance')
+    check_docker() {
         if [[ ! $(cat /etc/group | grep docker) =~ $USER ]]; then
             echo -e "
             Creating docker group, adding $USER into it and changing docker.sock owner
@@ -1600,12 +1601,14 @@ if [[ $(isSynology) == 1 ]]; then
         fi
     }
 
-    _fix_macvlan_vmm_vswitch() { #: _fix_macvlan_vmm_vswitch: remove and create again MacVLan after Synology vSwitch
+    _DESCRIPTIONS+=('_fix_macvlan_vmm_vswitch: Remove and recreate MacVLAN after Synology vSwitch changes')
+    _fix_macvlan_vmm_vswitch() {
         docker network rm VLAN_NAS
         dockermacvlan
         docker ps -f "status=exited" | awk '!/NAMES/ {print $NF;}' | xargs -I@ bash -c "xargs docker network connect VLAN_NAS @ && docker start @" 
     }
 
+    _DESCRIPTIONS+=('enable_usb_supporter: Enable USB support for Synology devices')
     enable_usb_supporter() {
         /sbin/modprobe usbserial
         /sbin/modprobe ftdi_sio
@@ -1626,42 +1629,49 @@ if [[ $(isSynology) == 1 ]]; then
             3D Printers Supported on DSM 7.
         "
     }
-    
+
+    _DESCRIPTIONS+=('welcome_msg: Display welcome message')
     welcome_msg() {
         echo -e " "
     }
+
 fi
 
 if [[ $(isKali) == 1 ]]; then
-    _fix_bluetooth() {                                                        #: _fix_bluetooth: fix bluethoot enabling for Kali OS
+    _DESCRIPTIONS+=('_fix_bluetooth: fix bluethoot enabling for Kali OS')
+    _fix_bluetooth() {
         rfkill unblock bluetooth
         systemctl enable bluetooth.service
         systemctl start bluetooth.service
         sudo systemctl restart bluetooth.service
     }
-    
-    _fix_printer() {                                                          #: _fix_printer: fix printer adding for Kali OS
+
+    _DESCRIPTIONS+=('_fix_printer: fix printer adding for Kali OS')
+    _fix_printer() {
         sudo service cups start
         sudo apt install cups cups-client cups-filters cups-ipp-utils
     }
 
-    _fix_docker() {                                                           #: _fix_docker: fix docker adding user to docker group for Kali OS
+    _DESCRIPTIONS+=('_fix_docker: fix docker adding user to docker group for Kali OS')
+    _fix_docker() {
         sudo usermod -aG docker $USER
     }
+
 fi
 
 if [[ $(isParrot) == 1 ]]; then
-    install_must() { #: install_must: Install must have Parrot OS packages
+    _DESCRIPTIONS+=('install_must: Install must have Parrot OS packages')
+    install_must() {
         sudo apt update 
 
-        apt_packages=( \
-            jq vim tree gnu-sed coreutils moreutils \
-            git-quick-stats \
-            ffmpeg imagemagick youtube-dl \
-            findutils java android-platform-tools \
-            xclip caffeine \
-            gparted snapd nautilus-admin gnome-tweaks \
-            code \
+        apt_packages=(
+            jq vim tree gnu-sed coreutils moreutils
+            git-quick-stats
+            ffmpeg imagemagick youtube-dl
+            findutils java android-platform-tools
+            xclip caffeine
+            gparted snapd nautilus-admin gnome-tweaks
+            code
             google-chrome-stable chrome-gnome-shell
         )
         for apt_package in "${apt_packages[@]}"; do 
@@ -1674,21 +1684,27 @@ if [[ $(isParrot) == 1 ]]; then
         config_git
         install_zsh
     }
-    install_chrome() { #: install_chrome: Install google chrome
+
+    _DESCRIPTIONS+=('install_chrome: Install google chrome')
+    install_chrome() {
         # wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
         # sudo dpkg -I google-chrome-stable_current_amd64.deb && rm google-chrome-stable_current_amd64.deb
-        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmour -o /usr/share/keyrings/google_linux_signing_key.gpg
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o /usr/share/keyrings/google_linux_signing_key.gpg
         sudo sh -c 'echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google_linux_signing_key.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list'
         sudo apt update && sudo apt install -y google-chrome-stable chrome-gnome-shell
     }
+
 fi
 
 if [[ $(isPop) == 1 ]]; then
-    install_anonsurf() { #: install_anonsurf: Install anonsurf
+    _DESCRIPTIONS+=('install_anonsurf: Install anonsurf')
+    install_anonsurf() {
         git clone https://github.com/Und3rf10w/kali-anonsurf.git && cd kali-anonsurf
         sudo ./installer.sh && cd ..
     }
-    popupdate() {  #: popupdate: Update all Pop OS
+
+    _DESCRIPTIONS+=('popupdate: Update all Pop OS')
+    popupdate() {
         sudo apt update
         sudo apt upgrade
         sudo apt dist-upgrade
@@ -1705,6 +1721,7 @@ if [[ $(isPop) == 1 ]]; then
             sudo reboot now
         }
     }
+
 fi
 
 _vimrc="$(
