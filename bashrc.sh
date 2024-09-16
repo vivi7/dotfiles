@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-14 rev9"
+echo "LastUpdate: 2024-09-16 rev1"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
@@ -955,6 +955,8 @@ if [[ $(isTermux) == 1 ]]; then
 
     [[ ${0##*/} == "bash" ]] && {
         shopt -s histappend # append to the history file, don't overwrite it
+        shopt -s histverify
+        PROMPT_DIRTRIM=2
         setps1
     }
 
