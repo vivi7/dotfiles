@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-16 rev1"
+echo "LastUpdate: 2024-09-19 rev1"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
@@ -21,7 +21,8 @@ _DESCRIPTIONS=()
 
 _DESCRIPTIONS+=('funchelp: List all sourced custom functions.')
 funchelp() {
-    IFS=$'\n' sorted=($(sort <<<"${_DESCRIPTIONS[*]}")); unset IFS
+    IFS=$'\n' sorted=($(sort <<<"${_DESCRIPTIONS[*]}"))
+    unset IFS
     local index=1
     for description in "${sorted[@]}"; do
         printf "%d. %s\n" "$index" "$description"
@@ -126,7 +127,7 @@ _DESCRIPTIONS+=('_paste: paste from clipboard')
 _paste() { xclip -selection clipboard -o; }
 
 _DESCRIPTIONS+=('calcp: calculate percent passing 3 args, example: calcp x 10 7 && calcp 70 x 7 && calcp 70 10 x')
-calcp() { 
+calcp() {
     awk -v a="$1" -v b="$2" -v c="$3" -v perc="%" 'BEGIN {
         if ( a == "x" ) printf "%.2f%s of %.2f is %.2f\n", c * 100 / b, "%", b, c
         else if( b == "x" ) printf "%.2f%s of %.2f is %.2f\n", a, "%", 100 / a * c, c
@@ -159,7 +160,7 @@ _DESCRIPTIONS+=('ippub: Public IP Address')
 ippub() { curl ifconfig.co 2>/dev/null; }
 
 _DESCRIPTIONS+=('ipswifi: Wlan IP Address')
-ipswifi() { ifconfig | grep 'inet ' | grep -v 127.0.0.1 | awk '{print $2}'; }  # ifconfig | awk '/inet / && !/127.0.0.1/ {print $2}'
+ipswifi() { ifconfig | grep 'inet ' | grep -v 127.0.0.1 | awk '{print $2}'; } # ifconfig | awk '/inet / && !/127.0.0.1/ {print $2}'
 
 _DESCRIPTIONS+=('ipgatewifi: Wlan IP Address')
 ipgatewifi() { ip route | grep default | awk '{print $3;}'; }
@@ -189,21 +190,24 @@ _DESCRIPTIONS+=('ffi: Find images here')
 ffi() { find ./ -type f -exec file --mime-type {} \; | awk '{if ($NF ~ "image") print $0 }'; }
 
 _DESCRIPTIONS+=('cchown: Change user Owner')
-cchown() { [[ $(id -u) -ne 0 ]] && { sudo chown -R $(whoami) "$1"; } || { chown -R $(whoami) "$1"; } }
+cchown() { [[ $(id -u) -ne 0 ]] && { sudo chown -R $(whoami) "$1"; } || { chown -R $(whoami) "$1"; }; }
 
 _DESCRIPTIONS+=('zipf: To create a ZIP archive of a folder')
 zipf() { zip -r "$1".zip "$1"; }
 
 _DESCRIPTIONS+=('gitbranch: print git branch')
-gitbranch () { git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/@\1 /' ; }
+gitbranch() { git branch 2>/dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/@\1 /'; }
 
 _DESCRIPTIONS+=('addpath: add safety path to PATH var, use -s as $2 to no logs')
 addpath() {
     path_to_add="$1"
     silent="$2"
-    if [[ ! -d "$path_to_add" ]]; then [[ "$silent" != "-s" ]] && { echom "$path_to_add not exist" "!" "${red}"; }; 
-    elif [[ ":$PATH:" == *":$path_to_add:"* ]]; then [[ "$silent" != "-s" ]] && { echom "$path_to_add already added" "-" "${yellow}"; }; 
-    else PATH="${PATH:+"$PATH:"}$path_to_add" && [[ "$silent" != "-s" ]] && { echom "$PATH" "*" "${green}"; };
+    if [[ ! -d "$path_to_add" ]]; then
+        [[ "$silent" != "-s" ]] && { echom "$path_to_add not exist" "!" "${red}"; }
+    elif [[ ":$PATH:" == *":$path_to_add:"* ]]; then
+        [[ "$silent" != "-s" ]] && { echom "$path_to_add already added" "-" "${yellow}"; }
+    else
+        PATH="${PATH:+"$PATH:"}$path_to_add" && [[ "$silent" != "-s" ]] && { echom "$PATH" "*" "${green}"; }
     fi
 }
 
@@ -241,7 +245,7 @@ extract_combine() {
     mkdir -p "${NAME}"
     find . -name "${NAME}*.zip" -print0 | sort -zk 1nr | while read -d $'\0' archive; do
         echom "Unzipping $archive" "*" "${yellow}"
-        unzip "$archive" -d "${NAME}"; 
+        unzip "$archive" -d "${NAME}"
     done
 }
 
@@ -253,15 +257,15 @@ join_files() {
         file_input="$1"
         echo $file_input
         if [ -s "$file_input" ]; then
-            echo "" >> "$file_output"
-            echo "------------------------------------------------------------------------------------" >> "$file_output"
-            echo "$file_input" >> "$file_output"
-            echo "" >> "$file_output"
+            echo "" >>"$file_output"
+            echo "------------------------------------------------------------------------------------" >>"$file_output"
+            echo "$file_input" >>"$file_output"
+            echo "" >>"$file_output"
         fi
-        cat "$file_input" >> "$file_output"
+        cat "$file_input" >>"$file_output"
     }
-    echo "" > "$file_output"
-    files=( $(find "$folder" -type f) )
+    echo "" >"$file_output"
+    files=($(find "$folder" -type f))
     for file in "${files[@]}"; do
         join_files "$file"
     done
@@ -298,7 +302,7 @@ remove_line_contains() {
     folder="${3}"
     for path in $(find $folder -name $file_regex); do
         echo $path
-        while read -r line; do [[ ! "$line" =~ "$pattern" ]] && echo "$line"; done <$path > $dest ;
+        while read -r line; do [[ ! "$line" =~ "$pattern" ]] && echo "$line"; done <$path >$dest
         # mv $dest $path
     done
 }
@@ -307,11 +311,11 @@ _DESCRIPTIONS+=('recurse_func: Recursively apply a function to files in a direct
 recurse_func() {
     __path="${1}"
     shift #args shift after first
-    if [ -d "$__path" ] ; then
-        for __sub_path in "$__path/"* ; do
+    if [ -d "$__path" ]; then
+        for __sub_path in "$__path/"*; do
             recurse_func "${@}" "${__sub_path}"
         done
-    elif [ -f "$__path" ] ; then
+    elif [ -f "$__path" ]; then
         "${@}" "$__path"
     fi
 }
@@ -380,7 +384,7 @@ install_zsh() {
         [[ "$ZSHRC_REPLY" =~ "y" ]] && {
             echo "${_zshrc}" >$HOME/.zshrc
             echom ".zshrc replaced" "*" "${green}"
-            echo "source $_bashrc_file_path" >> $HOME/.zshrc
+            echo "source $_bashrc_file_path" >>$HOME/.zshrc
         }
         chsh -s zsh
     }
@@ -458,7 +462,7 @@ config_git() {
 
 _DESCRIPTIONS+=('vdiff: compare 2 files/folders')
 vdiff() {
-    if [ "${#}" -ne 2 ] ; then
+    if [ "${#}" -ne 2 ]; then
         echo "vdiff requires two arguments"
         echo "  comparing dirs:  vdiff dir_a dir_b"
         echo "  comparing files: vdiff file_a file_b"
@@ -498,18 +502,18 @@ install_vscode_ext() {
 
 _DESCRIPTIONS+=('heic2jpg: convert heic to jpj in folder')
 heic2jpg() {
-    if ! command -v convert &> /dev/null; then
-        echo "Error: ImageMagick is not installed. Please install it and try again." 
+    if ! command -v convert &>/dev/null; then
+        echo "Error: ImageMagick is not installed. Please install it and try again."
         exit 1
     fi
     IN_EXT="${1:-HEIC}"
     echo "Do you want to delete .heic files after conversion? (y/n) : "
     read DEL_REPLY
-    [[ "$DEL_REPLY" =~ "y" ]] && { TO_DEL=1 ; }
+    [[ "$DEL_REPLY" =~ "y" ]] && { TO_DEL=1; }
     for file in *.$IN_EXT; do
         filename="${file%.*}"
         convert "$file" "${filename}.jpg"
-        [[ $TO_DEL == 1 ]] && { rm "$file" ; }
+        [[ $TO_DEL == 1 ]] && { rm "$file"; }
     done
 }
 
@@ -630,7 +634,7 @@ wrap_ffmpeg() { #: wrap_ffmpeg: -i mov -o mp4 -j
         echom "Joining..." "*" "${yellow}"
         touch _list_file_$inputFormat.txt
         for fiileToConcat in "${arrToConcat[@]}"; do
-            echo "file '""${fiileToConcat//%20/ }""'" >> _list_file_$inputFormat.txt
+            echo "file '""${fiileToConcat//%20/ }""'" >>_list_file_$inputFormat.txt
         done
         ffmpeg -safe 0 -f concat -i _list_file_$inputFormat.txt -c copy joined.$outputFormat
         cat _list_file_$inputFormat.txt
@@ -642,8 +646,8 @@ wrap_ffmpeg() { #: wrap_ffmpeg: -i mov -o mp4 -j
 _DESCRIPTIONS+=('docker-container-by-image: get docker container by image')
 docker-container-by-image() {
     docker ps -a -q --filter ancestor=${1} --format="{{.ID}}" #tag
-    docker ps -a | awk -v i="^$1.*" '{if($2~i){ print $1 }}' #name
-    for im in $(docker images -f "dangling=true" |  awk '{ print $3 }' | tail -n +2); do docker ps -a | awk -v i=${im} '{if($2~i){ print $1 }}'; done
+    docker ps -a | awk -v i="^$1.*" '{if($2~i){ print $1 }}'  #name
+    for im in $(docker images -f "dangling=true" | awk '{ print $3 }' | tail -n +2); do docker ps -a | awk -v i=${im} '{if($2~i){ print $1 }}'; done
 }
 
 _DESCRIPTIONS+=('dockerrm: docker stop and remove')
@@ -680,14 +684,14 @@ check_docker() {
         echo -e "
         Creating docker group, adding $USER into it and changing docker.sock owner
         If you get again issue please run follow command:
-            sudo chown root:administrators /var/run/docker.sock" 
+            sudo chown root:administrators /var/run/docker.sock"
     fi
 }
 
 _DESCRIPTIONS+=('dockermacvlan: Create MacVLan network as the host one')
 dockermacvlan() {
     check_docker
-    docker network ls | grep VLAN_NAS > /dev/null || {
+    docker network ls | grep VLAN_NAS >/dev/null || {
         docker network create \
             --driver=macvlan \
             --gateway=$(ipgatewifi) \
@@ -703,7 +707,7 @@ _DESCRIPTIONS+=('dockerwatch: Container with watchtower that watch docker instan
 dockerwatch() {
     check_docker
     docker run --detach --name watchtower \
-        -v /var/run/docker.sock:/var/run/docker.sock  \
+        -v /var/run/docker.sock:/var/run/docker.sock \
         containrrr/watchtower
     docker ps
 }
@@ -796,7 +800,7 @@ dockerchormejdownloader() {
 _DESCRIPTIONS+=('dockermega: Container with Mega client')
 dockermega() {
     mkdir -p $docker_volume_prefix/Downloads/Mega
-    docker run  --detach --name MegaDL \
+    docker run --detach --name MegaDL \
         --restart always \
         -v $docker_volume_prefix/Downloads/Mega:/output \
         -v mega_config:/config \
@@ -848,7 +852,7 @@ get_system_info() {
     USERS=$(whoami)
 
     # CPU
-    if command -v lscpu &> /dev/null; then
+    if command -v lscpu &>/dev/null; then
         NUM_CPUS=$(lscpu | awk '/^CPU\(s\):/ {print $2}')
         CPU_MAX_MHZ=$(lscpu | awk '/^CPU max MHz:/ {print $4}')
         CPU_MHZ=$(lscpu | awk '/^CPU MHz:/ {print $3}')
@@ -880,7 +884,7 @@ get_system_info() {
     fi
 
     # Memory
-    if command -v free &> /dev/null; then
+    if command -v free &>/dev/null; then
         MEM_USED=$(free -m | awk '/Mem:/ {print $3}')
         MEM_TOTAL=$(free -m | awk '/Mem:/ {print $2}')
         MEMORY="${MEM_USED}MiB / ${MEM_TOTAL}MiB"
@@ -889,7 +893,7 @@ get_system_info() {
         MEM_INACTIVE=$(vm_stat | grep 'Pages inactive' | awk '{print $3}' | sed 's/\.//')
         MEM_FREE=$(vm_stat | grep 'Pages free' | awk '{print $3}' | sed 's/\.//')
         PAGE_SIZE=$(sysctl -n hw.pagesize)
-        MEM_USED_MB=$(( (MEM_USED + MEM_INACTIVE) * PAGE_SIZE / 1024 / 1024 ))
+        MEM_USED_MB=$(((MEM_USED + MEM_INACTIVE) * PAGE_SIZE / 1024 / 1024))
         MEM_TOTAL_MB=$(sysctl -n hw.memsize | awk '{print $1 / 1024 / 1024}')
         MEMORY="${MEM_USED_MB}MiB / ${MEM_TOTAL_MB%.*}MiB"
     fi
@@ -897,17 +901,17 @@ get_system_info() {
     # Battery
     if [[ "$OSTYPE" == "darwin"* ]]; then
         BATTERY=$(pmset -g batt | grep -Eo "\d+%.*;" | sed 's/;//')
-    elif command -v acpi &> /dev/null; then
+    elif command -v acpi &>/dev/null; then
         BATTERY=$(acpi -b | awk -F', ' '{print $2 " " $3}')
     fi
 
     # Disk
-    if command -v df &> /dev/null; then
+    if command -v df &>/dev/null; then
         DISK=$(df -h $_disk_to_show | awk 'NR==2 {print $3 " used of " $2}')
     fi
 
     # Locale
-    if command -v locale &> /dev/null; then
+    if command -v locale &>/dev/null; then
         LOCALE=$(locale | grep LANG= | cut -d= -f2)
     fi
 
@@ -924,7 +928,6 @@ get_system_info() {
     echo "${OS:-UNKNOWN}"
 }
 
-
 _DESCRIPTIONS+=('print_welcome: Print welcome message')
 print_welcome() {
     echo ""
@@ -935,8 +938,8 @@ print_welcome() {
     welcome_msg
 }
 
-
 if [[ $(isTermux) == 1 ]]; then
+    # awk -v line="$line_number" '{if(NR==line) print "#" $0; else print $0}' "$file_name" > "${file_name}.tmp" && mv "${file_name}.tmp" "$file_name"
 
     _bashrc_file_path="$PREFIX/etc/bash.bashrc"
     _disk_to_show="/sdcard/"
@@ -998,9 +1001,8 @@ EOF
     )"
     mkdir -p $PREFIX/etc/apt/sources.list.d
     mkdir -p $HOME/.termux/
-    echo "${_termux_extra_keys}" >> $HOME/.termux/termux.properties
+    echo "${_termux_extra_keys}" >>$HOME/.termux/termux.properties
     termux-reload-settings
-
 
     alias open='termux-open'           #: open: display bash options settings
     alias trl='termux-reload-settings' #: trl: termux-reload-settings
@@ -1077,9 +1079,9 @@ _EOF_
 
         while getopts s:c:x o; do
             case $o in
-                -s) internal_start ;;
-                -c) internal_check_start ;;
-                -x) internal_stop ;;
+            -s) internal_start ;;
+            -c) internal_check_start ;;
+            -x) internal_stop ;;
             *) internal_check_start ;;
             esac
         done
@@ -1089,24 +1091,25 @@ _EOF_
     stx() {
         # Kill open X11 processes
         kill -9 $(pgrep -f "termux.x11") 2>/dev/null
-        
+
         # Enable PulseAudio over Network
         pulseaudio --start --load="module-native-protocol-tcp auth-ip-acl=127.0.0.1 auth-anonymous=1" --exit-idle-time=-1
 
         # Prepare termux-x11 session
         export XDG_RUNTIME_DIR=${TMPDIR}
         termux-x11 :0 >/dev/null &
-        sleep 3  # Wait a bit until termux-x11 gets started.
+        sleep 3 # Wait a bit until termux-x11 gets started.
 
         # Launch Termux X11 main activity
-        am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity > /dev/null 2>&1
+        am start --user 0 -n com.termux.x11/com.termux.x11.MainActivity >/dev/null 2>&1
         sleep 1
 
         # Set audio server && Run XFCE4 Desktop
         if [[ "$1" == "nh" ]]; then
-            nethunter -r  'export PULSE_SERVER=127.0.0.1 && export XDG_RUNTIME_DIR=${TMPDIR} && su - kali -c "env DISPLAY=:0 startxfce4"'
-        else 
-            export PULSE_SERVER=127.0.0.1 && env DISPLAY=:0 dbus-launch --exit-with-session xfce4-session & > /dev/null 2>&1
+            nethunter -r 'export PULSE_SERVER=127.0.0.1 && export XDG_RUNTIME_DIR=${TMPDIR} && su - kali -c "env DISPLAY=:0 startxfce4"'
+        else
+            export PULSE_SERVER=127.0.0.1 && env DISPLAY=:0 dbus-launch --exit-with-session xfce4-session &
+            >/dev/null 2>&1
         fi
 
         exit 0
@@ -1171,6 +1174,8 @@ EOF
         #     pulseaudio
         #     proot-distro
         #     xfce4 tur-repo
+        #     xfce4 xfce4-goodies tur-repo
+        #     virglrenderer-android wmctrl
         # )
         # pkg_programs=(
         #     chromium
@@ -1178,28 +1183,39 @@ EOF
         # )
         pkg_must=(
             termux-services ncurses-utils coreutils tsu
-            htop-legacy openssl-tool openssh gnupg
+            htop-legacy openssl-tool openssh gnupg dbus
             tar git wget curl jq vim tree tmux dnsutils nmap
             zsh
             ffmpeg imagemagick
-            nodejs-lts 
-            docker golang make cmake ndk-multilib iproute2
         )
         echom "Installing must have packages..." "*" "${yellow}"
         pkg install -y "${pkg_must[@]}"
         # cat sudo > $PREFIX/bin/sudo && chmod 700 $PREFIX/bin/sudo
         echom "Must have packages installed successfully" "*" "${green}"
+        echom "You can install: nodejs-lts docker golang make cmake ndk-multilib iproute2"
         config_git
         install_zsh
     }
 
     _DESCRIPTIONS+=('install_termux_desktop: Install desktop Termux packages')
     install_termux_desktop() {
+        echo "Do you want to install termux-x11 deb and apk? (y/n) : "
+        read TRX_REPLY
+        [[ "$TRX_REPLY" =~ "y" ]] && {
+            wget https://github.com/termux/termux-x11/releases/download/nightly/termux-x11-nightly-1.03.00-0-all.deb
+            dpkg -i termux-x11-nightly-1.03.00-0-all.deb
+            rm termux-x11-nightly-1.03.00-0-all.deb
+
+            wget https://github.com/termux/termux-x11/releases/download/nightly/app-arm64-v8a-debug.apk
+            mv app-arm64-v8a-debug.apk $HOME/storage/downloads/
+            termux-open $HOME/storage/downloads/app-arm64-v8a-debug.apk
+        }
         pkg_desktop=(
             termux-x11-nightly
             pulseaudio
             proot-distro
-            xfce4 tur-repo
+            xfce4 xfce4-goodies tur-repo
+            virglrenderer-android wmctrl
         )
         echo "Related pkgs are:" "${pkgs[@]}"
         echo "Do you want termux-desktop? (install/uninstall) : "
@@ -1226,7 +1242,7 @@ EOF
 
         url="https://gitlab.com/kalilinux/nethunter/build-scripts/kali-nethunter-project/raw/master/nethunter-rootless/install-nethunter-termux"
         local_file="nh-termux-install.sh"
-        
+
         online_version=$(curl -s "$url" | sed -n '3p')
         local_version=$(sed -n '3p' "./bin/$local_file")
 
@@ -1234,8 +1250,8 @@ EOF
         if [ "$online_version" != "$local_version" ]; then
             temp_file="install-nethunter-termux"
             curl -o ./bin/$temp_file $url
-            awk '{gsub("-b /proc","-b /proc -b $HOME/storage/shared:/sdcard -b $PREFIX/tmp:/tmp -b $HOME/bashrc.sh:$home/bashrc.sh"); print}' ${temp_file} > ${local_file}
-            diff ${temp_file}  ${local_file}
+            awk '{gsub("-b /proc","-b /proc -b $HOME/storage/shared:/sdcard -b $PREFIX/tmp:/tmp -b $HOME/bashrc.sh:$home/bashrc.sh"); print}' ${temp_file} >${local_file}
+            diff ${temp_file} ${local_file}
             rm ${temp_file}
         fi
 
@@ -1294,7 +1310,7 @@ if [[ $(isMac) == 1 ]]; then
     _bashrc_file_path=~/.bash_profile
     _disk_to_show='/'
     [ -x $(command -v airport) ] || { sudo ln -s /System/Library/PrivateFrameworks/Apple80211.framework/Versions/Current/Resources/airport /usr/sbin/airport; }
-    
+
     alias kcamera='sudo killall VDCAssistant'                                                                                                                                                       #: kcamera: restart MacOS camera service
     alias ksophos='sudo killall SophosScanD SophosEventMonitor SophosServiceManager'                                                                                                                #: ksophos: kill sophos MacOS services
     alias hostr='sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder'                                                                                                                     #: hostr: source MacOS host file
@@ -1311,8 +1327,8 @@ if [[ $(isMac) == 1 ]]; then
     alias restart_hosts='sudo edit /etc/hosts'                                                                                                                                                      #: restart_hosts: Refresh MacOS hosts
     alias herr='tail /var/log/httpd/error_log'                                                                                                                                                      #: herr: Tails MacOS HTTP error logs
     alias logs_apache="less +F /var/log/apache2/error_log"                                                                                                                                          #: logs_apache: Shows MacOS apache error logs
-    alias docs='cd ~/Documents'  #: docs: 'cd /sdcard/Documents' in MacOS Env
-    alias downs='cd ~/Downloads' #: downs: 'cd /sdcard/Downloads' in MacOS Env
+    alias docs='cd ~/Documents'                                                                                                                                                                     #: docs: 'cd /sdcard/Documents' in MacOS Env
+    alias downs='cd ~/Downloads'                                                                                                                                                                    #: downs: 'cd /sdcard/Downloads' in MacOS Env
 
     # Replace the declared one
     ipgatewifi() { netstat -nr | grep UGScg | awk '{print $2;}'; }
@@ -1407,7 +1423,7 @@ EOT
             echo "Loaded brew for M1"
         }
     }
-    _should_load_brew_m1  # eval per far funzionare brew su M1
+    _should_load_brew_m1 # eval per far funzionare brew su M1
 
     _DESCRIPTIONS+=('install_must: Install must have MacOS packages')
     install_must() {
@@ -1417,12 +1433,12 @@ EOT
         echom "Turn off brew analytics" "*" "${yellow}"
         brew analytics off
         echom "Installing brew formulas..." "*" "${yellow}"
-        brew_formulas=( \
-            jq vim tree gnu-sed coreutils moreutils \
-            git-quick-stats \
-            ffmpeg imagemagick youtube-dl kalker \
-            findutils java android-platform-tools \
-            qlcolorcode qlstephen qlmarkdown quicklook-json qlimagesize suspicious-package apparency quicklookase qlvideo \
+        brew_formulas=(
+            jq vim tree gnu-sed coreutils moreutils
+            git-quick-stats
+            ffmpeg imagemagick youtube-dl kalker
+            findutils java android-platform-tools
+            qlcolorcode qlstephen qlmarkdown quicklook-json qlimagesize suspicious-package apparency quicklookase qlvideo
             qlprettypatch quicklook-csv webpquicklook macdown qlswift
         )
         for brew_formula in "${brew_formulas[@]}"; do
@@ -1430,12 +1446,12 @@ EOT
         done
         echom "Formulas installed successfully." "*" "${green}"
         echom "Installing brew Cask formulas..." "*" "${yellow}"
-        brew_cask_formulas=( \
-            bettertouchtool maccy \
-            sourcetree visual-studio-code \
-            jdownloader the-unarchiver \
-            google-drive google-chrome \
-            virtualbox vlc mediainfo spotify \
+        brew_cask_formulas=(
+            bettertouchtool maccy
+            sourcetree visual-studio-code
+            jdownloader the-unarchiver
+            google-drive google-chrome
+            virtualbox vlc mediainfo spotify
             telegram-desktop whatsapp zoom slack teamviewer
         )
         for brew_cask_formula in "${brew_cask_formulas[@]}"; do
@@ -1446,7 +1462,6 @@ EOT
         config_git
         install_zsh
     }
-
 
     _DESCRIPTIONS+=('init_setup: Setup MacOS defaults')
     init_setup() {
@@ -1610,10 +1625,10 @@ if [[ $(isSynology) == 1 ]]; then
             echo -e "
             Creating docker group, adding $USER into it and changing docker.sock owner
             If you get again issue please run follow command:
-                sudo chown root:administrators /var/run/docker.sock" 
-            sudo synogroup --add docker 
-            sudo synogroup --member docker $USER 
-            sudo chown root:docker /var/run/docker.sock 
+                sudo chown root:administrators /var/run/docker.sock"
+            sudo synogroup --add docker
+            sudo synogroup --member docker $USER
+            sudo chown root:docker /var/run/docker.sock
         fi
     }
 
@@ -1621,7 +1636,7 @@ if [[ $(isSynology) == 1 ]]; then
     _fix_macvlan_vmm_vswitch() {
         docker network rm VLAN_NAS
         dockermacvlan
-        docker ps -f "status=exited" | awk '!/NAMES/ {print $NF;}' | xargs -I@ bash -c "xargs docker network connect VLAN_NAS @ && docker start @" 
+        docker ps -f "status=exited" | awk '!/NAMES/ {print $NF;}' | xargs -I@ bash -c "xargs docker network connect VLAN_NAS @ && docker start @"
     }
 
     _DESCRIPTIONS+=('enable_usb_supporter: Enable USB support for Synology devices')
@@ -1629,7 +1644,7 @@ if [[ $(isSynology) == 1 ]]; then
         /sbin/modprobe usbserial
         /sbin/modprobe ftdi_sio
         /sbin/modprobe cdc-acm
-        chmod 777 /dev/ttyUSB0 
+        chmod 777 /dev/ttyUSB0
         chmod 777 /dev/ttyACM0
         echo -e "
         Install community package: 
@@ -1678,7 +1693,7 @@ fi
 if [[ $(isParrot) == 1 ]]; then
     _DESCRIPTIONS+=('install_must: Install must have Parrot OS packages')
     install_must() {
-        sudo apt update 
+        sudo apt update
 
         apt_packages=(
             jq vim tree gnu-sed coreutils moreutils
@@ -1690,7 +1705,7 @@ if [[ $(isParrot) == 1 ]]; then
             code
             google-chrome-stable chrome-gnome-shell
         )
-        for apt_package in "${apt_packages[@]}"; do 
+        for apt_package in "${apt_packages[@]}"; do
             apt install -y $apt_package
         done
         echom "Apts installed successfully." "*" "${green}"
@@ -1893,7 +1908,7 @@ EOF
 )"
 
 _new_script="$(
-    cat << \EOF
+    cat <<\EOF
 #!/bin/sh
 PROGNAME=$0
 usage() {
@@ -1969,7 +1984,7 @@ print_welcome
 #   e.g.: hdiutil create -size 10m 10MB.dmg
 #   the above create files that are almost all zeros - if random bytes are desired
 #   then use: ~/Dev/Perl/randBytes 1048576 > 10MB.dat
-# 
+#
 # Go http://huawei_routher_address/html/dhcp.html and press F12 and in console put:
 # $('#input_dhcp_subnet_mask').show();
 # $('#dhcp_dns_statistic').show();
