@@ -844,75 +844,76 @@ dockervscode() {
 
 _DESCRIPTIONS+=('get_system_info: Display detailed system information in a formatted output')
 get_system_info() {
-    _OS="$(checkOS) - $(uname -a)"
-    UPTIME=$(uptime)
-    SHELL_INFO=$($SHELL --version | head -n 1)
-    LOCAL_IP=$(ipswifi)
-    PUBLIC_IP=$(ippub)
-    USERS=$(whoami)
+    local _OS="$(checkOS) - $(uname -a)"
+    local UPTIME=$(uptime)
+    local SHELL_INFO=$($SHELL --version | head -n 1)
+    local LOCAL_IP=$(ipswifi)
+    local PUBLIC_IP=$(ippub)
+    local USERS=$(whoami)
 
     # CPU
     if command -v lscpu &>/dev/null; then
-        NUM_CPUS=$(lscpu | awk '/^CPU\(s\):/ {print $2}')
-        CPU_MAX_MHZ=$(lscpu | awk '/^CPU max MHz:/ {print $4}')
-        CPU_MHZ=$(lscpu | awk '/^CPU MHz:/ {print $3}')
+        local NUM_CPUS=$(lscpu | awk '/^CPU\(s\):/ {print $2}')
+        local CPU_MAX_MHZ=$(lscpu | awk '/^CPU max MHz:/ {print $4}')
+        local CPU_MHZ=$(lscpu | awk '/^CPU MHz:/ {print $3}')
+        local CPU_SPEED_MHZ
         if [ -z "$CPU_MAX_MHZ" ]; then
             CPU_SPEED_MHZ="$CPU_MHZ"
         else
             CPU_SPEED_MHZ="$CPU_MAX_MHZ"
         fi
-        CPU_SPEED_GHZ=$(awk -v freq="$CPU_SPEED_MHZ" 'BEGIN {printf "%.2f", freq/1000}')
-        CPU="(${NUM_CPUS:-UNKNOWN}) @ ${CPU_SPEED_GHZ:-UNKNOWN}GHz"
+        local CPU_SPEED_GHZ=$(awk -v freq="$CPU_SPEED_MHZ" 'BEGIN {printf "%.2f", freq/1000}')
+        local CPU="(${NUM_CPUS:-UNKNOWN}) @ ${CPU_SPEED_GHZ:-UNKNOWN}GHz"
     elif [ -f /proc/cpuinfo ]; then
-        NUM_CPUS=$(grep -c ^processor /proc/cpuinfo)
-        CPU_MHZ=$(grep "cpu MHz" /proc/cpuinfo | head -1 | awk '{print $4}')
-        CPU_SPEED_GHZ=$(awk -v freq="$CPU_MHZ" 'BEGIN {printf "%.2f", freq/1000}')
-        CPU="(${NUM_CPUS:-UNKNOWN}) @ ${CPU_SPEED_GHZ:-UNKNOWN}GHz"
+        local NUM_CPUS=$(grep -c ^processor /proc/cpuinfo)
+        local CPU_MHZ=$(grep "cpu MHz" /proc/cpuinfo | head -1 | awk '{print $4}')
+        local CPU_SPEED_GHZ=$(awk -v freq="$CPU_MHZ" 'BEGIN {printf "%.2f", freq/1000}')
+        local CPU="(${NUM_CPUS:-UNKNOWN}) @ ${CPU_SPEED_GHZ:-UNKNOWN}GHz"
     elif [[ "$OSTYPE" == "darwin"* ]]; then
-        NUM_CPUS=$(sysctl -n hw.logicalcpu)
-        CHIP_NAME=$(system_profiler SPHardwareDataType | awk -F": " '/Chip|Processor Name/ {print $2; exit}')
+        local NUM_CPUS=$(sysctl -n hw.logicalcpu)
+        local CHIP_NAME=$(system_profiler SPHardwareDataType | awk -F": " '/Chip|Processor Name/ {print $2; exit}')
         if [[ "$CHIP_NAME" == "Apple M"* ]]; then
             # Apple Silicon
-            TOTAL_CORES=$(system_profiler SPHardwareDataType | awk -F": " '/Total Number of Cores/ {print $2}')
-            CPU="(${TOTAL_CORES:-UNKNOWN}) $CHIP_NAME"
+            local TOTAL_CORES=$(system_profiler SPHardwareDataType | awk -F": " '/Total Number of Cores/ {print $2}')
+            local CPU="(${TOTAL_CORES:-UNKNOWN}) $CHIP_NAME"
         else
             # Intel
-            CPU_SPEED_STR=$(system_profiler SPHardwareDataType | awk -F": " '/Processor Speed/ {print $2}')
-            CPU_SPEED_GHZ=$(echo "$CPU_SPEED_STR" | sed 's/ GHz//')
-            CPU="(${NUM_CPUS:-UNKNOWN}) $CHIP_NAME @ ${CPU_SPEED_GHZ:-UNKNOWN}GHz"
+            local CPU_SPEED_STR=$(system_profiler SPHardwareDataType | awk -F": " '/Processor Speed/ {print $2}')
+            local CPU_SPEED_GHZ=$(echo "$CPU_SPEED_STR" | sed 's/ GHz//')
+            local CPU="(${NUM_CPUS:-UNKNOWN}) $CHIP_NAME @ ${CPU_SPEED_GHZ:-UNKNOWN}GHz"
         fi
     fi
 
     # Memory
     if command -v free &>/dev/null; then
-        MEM_USED=$(free -m | awk '/Mem:/ {print $3}')
-        MEM_TOTAL=$(free -m | awk '/Mem:/ {print $2}')
-        MEMORY="${MEM_USED}MiB / ${MEM_TOTAL}MiB"
+        local MEM_USED=$(free -m | awk '/Mem:/ {print $3}')
+        local MEM_TOTAL=$(free -m | awk '/Mem:/ {print $2}')
+        local MEMORY="${MEM_USED}MiB / ${MEM_TOTAL}MiB"
     elif [[ "$OSTYPE" == "darwin"* ]]; then
-        MEM_USED=$(vm_stat | grep 'Pages active' | awk '{print $3}' | sed 's/\.//')
-        MEM_INACTIVE=$(vm_stat | grep 'Pages inactive' | awk '{print $3}' | sed 's/\.//')
-        MEM_FREE=$(vm_stat | grep 'Pages free' | awk '{print $3}' | sed 's/\.//')
-        PAGE_SIZE=$(sysctl -n hw.pagesize)
-        MEM_USED_MB=$(((MEM_USED + MEM_INACTIVE) * PAGE_SIZE / 1024 / 1024))
-        MEM_TOTAL_MB=$(sysctl -n hw.memsize | awk '{print $1 / 1024 / 1024}')
-        MEMORY="${MEM_USED_MB}MiB / ${MEM_TOTAL_MB%.*}MiB"
+        local MEM_USED=$(vm_stat | grep 'Pages active' | awk '{print $3}' | sed 's/\.//')
+        local MEM_INACTIVE=$(vm_stat | grep 'Pages inactive' | awk '{print $3}' | sed 's/\.//')
+        local MEM_FREE=$(vm_stat | grep 'Pages free' | awk '{print $3}' | sed 's/\.//')
+        local PAGE_SIZE=$(sysctl -n hw.pagesize)
+        local MEM_USED_MB=$(((MEM_USED + MEM_INACTIVE) * PAGE_SIZE / 1024 / 1024))
+        local MEM_TOTAL_MB=$(sysctl -n hw.memsize | awk '{print $1 / 1024 / 1024}')
+        local MEMORY="${MEM_USED_MB}MiB / ${MEM_TOTAL_MB%.*}MiB"
     fi
 
     # Battery
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        BATTERY=$(pmset -g batt | grep -Eo "\d+%.*;" | sed 's/;//')
+        local BATTERY=$(pmset -g batt | grep -Eo "\d+%.*;" | sed 's/;//')
     elif command -v acpi &>/dev/null; then
-        BATTERY=$(acpi -b | awk -F', ' '{print $2 " " $3}')
+        local BATTERY=$(acpi -b | awk -F', ' '{print $2 " " $3}')
     fi
 
     # Disk
     if command -v df &>/dev/null; then
-        DISK=$(df -h $_disk_to_show | awk 'NR==2 {print $3 " used of " $2}')
+        local DISK=$(df -h $_disk_to_show | awk 'NR==2 {print $3 " used of " $2}')
     fi
 
     # Locale
     if command -v locale &>/dev/null; then
-        LOCALE=$(locale | grep LANG= | cut -d= -f2)
+        local LOCALE=$(locale | grep LANG= | cut -d= -f2)
     fi
 
     echo -e "${yellow}Shell:       ${endc} ${SHELL_INFO:-UNKNOWN}"
