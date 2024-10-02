@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-echo "LastUpdate: 2024-09-19 rev1"
+echo "LastUpdate: 2024-10-02 rev1"
 echo "Edited by Vincenzo Favara"
 _bashrc_name="bashrc.sh"
 echo "Script: ${0##*/}"
@@ -844,7 +844,7 @@ dockervscode() {
 
 _DESCRIPTIONS+=('get_system_info: Display detailed system information in a formatted output')
 get_system_info() {
-    OS="$(checkOS) - $(uname -a)"
+    _OS="$(checkOS) - $(uname -a)"
     UPTIME=$(uptime)
     SHELL_INFO=$($SHELL --version | head -n 1)
     LOCAL_IP=$(ipswifi)
@@ -925,7 +925,7 @@ get_system_info() {
     echo -e "${yellow}Locale:      ${endc} ${LOCALE:-UNKNOWN}"
     echo -e "${yellow}Local IP:    ${endc} ${LOCAL_IP:-UNKNOWN}"
     echo -e "${yellow}Public IP:   ${endc} ${PUBLIC_IP:-UNKNOWN}"
-    echo "${OS:-UNKNOWN}"
+    echo "${_OS:-UNKNOWN}"
 }
 
 _DESCRIPTIONS+=('print_welcome: Print welcome message')
@@ -1161,26 +1161,28 @@ EOF
 
     _DESCRIPTIONS+=('install_must: Install must have Termux packages')
     install_must() {
-        echom "Installing must have repo packages..." "*" "${yellow}"
+        echom "Updating package repositories..." "*" "${yellow}"
         pkg update -y
         pkg upgrade -y
-        pkg_must_repo=(
+        pkg_repo=(
             x11-repo root-repo science-repo termux-api
         )
-        pkg install -y "${pkg_must_repo[@]}"
+        pkg install -y "${pkg_repo[@]}"
         pkg update -y
-        # pkg_desktop=(
-        #     termux-x11-nightly
-        #     pulseaudio
-        #     proot-distro
-        #     xfce4 tur-repo
-        #     xfce4 xfce4-goodies tur-repo
-        #     virglrenderer-android wmctrl
-        # )
-        # pkg_programs=(
-        #     chromium
-        #     code-oss
-        # )
+        pkg_desktop=(
+            termux-x11-nightly
+            pulseaudio
+            proot-distro
+            xfce4 xfce4-goodies tur-repo
+            virglrenderer-android wmctrl
+        )
+        pkg_programs=(
+            chromium
+            code-oss
+        )
+        pkg_proot=(
+            proot tar axel
+        )
         pkg_must=(
             termux-services ncurses-utils coreutils tsu
             htop-legacy openssl-tool openssh gnupg dbus
@@ -1188,14 +1190,39 @@ EOF
             zsh
             ffmpeg imagemagick
         )
-        echom "Installing must have packages..." "*" "${yellow}"
-        pkg install -y "${pkg_must[@]}"
-        # cat sudo > $PREFIX/bin/sudo && chmod 700 $PREFIX/bin/sudo
-        echom "Must have packages installed successfully" "*" "${green}"
-        echom "You can install: nodejs-lts docker golang make cmake ndk-multilib iproute2"
+        package_groups=(
+            pkg_desktop
+            pkg_programs
+            pkg_proot
+            pkg_must
+        )
+        for pkg_array_name in "${package_groups[@]}"; do
+            echo "Do you want to install ${pkg_array_name}? (y/n) : "
+            echo "${!pkg_array_name[@]}"
+            read PKG_REPLY
+            [[ "$PKG_REPLY" =~ "y" ]] && {
+                echom "Installing packages from ${pkg_array_name}..." "*" "${yellow}"
+                pkg install -y "${!pkg_array_name[@]}"
+                for i in "${!pkg_array_name[@]}"; do
+                    if [ -e $PREFIX/bin/$i ]; then
+                        echom "  $i is OK" "*" "${green}"
+                    else
+                        printf "Installing ${i}...\n"
+                        apt install -y $i || {
+                            echom "ERROR: Failed to install package $i" "!" "${red}"
+                        exit
+                        }
+                    fi
+                done
+            }
+        done
+
+        echom "All packages installed successfully" "*" "${green}"
+        echom "You can also install: nodejs-lts, docker, golang, make, cmake, ndk-multilib, iproute2"
         config_git
         install_zsh
     }
+
 
     _DESCRIPTIONS+=('install_termux_desktop: Install desktop Termux packages')
     install_termux_desktop() {
