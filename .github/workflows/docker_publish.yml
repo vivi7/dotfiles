@@ -3,15 +3,16 @@ name: Docker Publish
 on:
   workflow_call:
     inputs:
-      PREFIX:
+      REPO_URL:
+        required: true
+        type: string
+      REPO_OVERRIDE_RELEASE_VERSION:
         required: false
         type: string
-      REPO:
-        required: true
+      REPO_OVERRIDE_DOCKERFILE_PATH:
+        required: false
         type: string
-      RELEASE_VERSION:
-        required: true
-        type: string
+        default: './Dockerfile'
     secrets:
       token:
         required: false
@@ -21,6 +22,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      - name: Set env
+        run: |
+          REPO_URL="${{ inputs.REPO_URL }}"
+          REPO_PREFIX=$(echo $REPO_URL | sed -E 's#(https?://[^/]+).*#\1#')
+          REPO_NAME=$(echo $REPO_URL | sed -E 's#https?://[^/]+/##')
+          FULL_REPO_SUMMARY_NAME="${REPO_PREFIX}_-_${REPO_NAME}"
+          echo "REPO_URL=$REPO_URL" >> $GITHUB_ENV
+          echo "FULL_REPO_SUMMARY_NAME=$FULL_REPO_SUMMARY_NAME" >> $GITHUB_ENV
+
+      - name: Checkout external Git project
+        if: ${{ inputs.REPO_URL != '' }}
+        run: |
+          git clone ${{ inputs.REPO_URL }} external-repo
+          cd external-repo
+          LAST_RELEASE_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
+          echo "RELEASE_VERSION=$LAST_RELEASE_TAG" >> $GITHUB_ENV
+
+      - name: Set release version
+        if: ${{ inputs.REPO_OVERRIDE_RELEASE_VERSION != '' }}
+        run: |
+          echo "RELEASE_VERSION=${{ inputs.REPO_OVERRIDE_RELEASE_VERSION }}" >> $GITHUB_ENV
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
 
@@ -34,15 +58,25 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
+      - name: Check and create Docker Hub repository
+        run: |
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_TOKEN }}" "https://hub.docker.com/v2/repositories/${{ secrets.DOCKER_USERNAME }}/${{ env.FULL_REPO_SUMMARY_NAME }}/")
+          if [ "$RESPONSE" -eq 404 ]; then
+            echo "Repository does not exist. Creating..."
+            curl -s -X POST -u "${{ secrets.DOCKER_USERNAME }}:${{ secrets.DOCKER_TOKEN }}" "https://hub.docker.com/v2/repositories/" -d "{\"name\": \"${{ env.FULL_REPO_SUMMARY_NAME }}\", \"namespace\": \"${{ secrets.DOCKER_USERNAME }}\"}"
+          else
+            echo "Repository exists."
+          fi
+
       - name: Build and push
         id: docker_build
         uses: docker/build-push-action@v2
         with:
-          context: ./
-          file: ./Dockerfile
+          context: ./external-repo
+          file: ${{ env.REPO_OVERRIDE_DOCKERFILE_PATH || './Dockerfile' }}
           platforms: linux/arm/v7,linux/arm64,linux/amd64
           push: true
-          tags: ${{ PREFIX }}${{ env.REPO }}:${{ env.RELEASE_VERSION }}, ${{ PREFIX }}${{ env.REPO }}:latest
-      
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.FULL_REPO_SUMMARY_NAME }}:${{ env.RELEASE_VERSION }}, ${{ secrets.DOCKER_USERNAME }}/${{ env.FULL_REPO_SUMMARY_NAME }}:latest
+
       - name: Image digest
-        run: echo ${{ steps.build.outputs.digest }} 
+        run: echo ${{ steps.build.outputs.digest }}
