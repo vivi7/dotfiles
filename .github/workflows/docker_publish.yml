@@ -30,9 +30,8 @@ jobs:
       - name: Set env
         run: |
           REPO_URL="${{ github.event.inputs.REPO_URL }}"
-          REPO_PREFIX=$(echo $REPO_URL | sed -E 's#(https?://[^/]+).*#\1#')
-          REPO_NAME=$(echo $REPO_URL | sed -E 's#https?://[^/]+/##')
-          FULL_REPO_SUMMARY_NAME="${REPO_PREFIX}_-_${REPO_NAME}"
+          REPO_NAME=$(echo $REPO_URL | sed -E 's#https?://[^/]+/([^/]+)/([^/]+)\.git#\1__\2#')
+          FULL_REPO_SUMMARY_NAME="$REPO_NAME"
           echo "REPO_URL=$REPO_URL" >> $GITHUB_ENV
           echo "FULL_REPO_SUMMARY_NAME=$FULL_REPO_SUMMARY_NAME" >> $GITHUB_ENV
 
