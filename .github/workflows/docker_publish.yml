@@ -84,7 +84,7 @@ jobs:
           file: ${{ env.REPO_OVERRIDE_DOCKERFILE_PATH }}
           platforms: linux/arm/v7,linux/arm64,linux/amd64
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.FULL_REPO_SUMMARY_NAME }}:${{ env.RELEASE_VERSION }}, ${{ secrets.DOCKER_USERNAME }}/${{ env.FULL_REPO_SUMMARY_NAME }}:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/${{ env.REPO_NAME }}:${{ env.RELEASE_VERSION }}, ${{ secrets.DOCKER_USERNAME }}/${{ env.REPO_NAME }}:latest
 
       - name: Image digest
         run: echo ${{ steps.build.outputs.digest }}
