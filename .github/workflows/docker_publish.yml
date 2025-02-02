@@ -12,10 +12,10 @@ on:
         required: false
         type: string
       REPO_OVERRIDE_DOCKERFILE_PATH:
-        description: 'Path to the Dockerfile, defaults to ./Dockerfile.'
+        description: 'Path to the Dockerfile, defaults to Dockerfile. ./ is already added to the path.'
         required: false
         type: string
-        default: './Dockerfile'
+        default: 'Dockerfile'
   workflow_call:
     secrets:
       token:
@@ -51,7 +51,7 @@ jobs:
           fi
           echo "RELEASE_VERSION=$RELEASE_VERSION" >> $GITHUB_ENV
 
-          echo "REPO_OVERRIDE_DOCKERFILE_PATH=${{ github.event.inputs.REPO_OVERRIDE_DOCKERFILE_PATH || './Dockerfile' }}" >> $GITHUB_ENV
+          echo "REPO_OVERRIDE_DOCKERFILE_PATH=./${{ env.REPO_CONTAINER_PATH }}/${{ github.event.inputs.REPO_OVERRIDE_DOCKERFILE_PATH || 'Dockerfile' }}" >> $GITHUB_ENV
           echo "REPO_DOCKERFILE_CONTEXT=./${{ env.REPO_CONTAINER_PATH }}/" >> $GITHUB_ENV
 
       - name: Print env
